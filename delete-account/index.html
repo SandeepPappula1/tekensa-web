@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delete your Tekensa account</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0D0D0F;
+    --paper: #FAFAF7;
+    --card: #ffffff;
+    --accent: #2A2AF0;
+    --muted: #5c5e68;
+    --line: #e4e3dc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #FAFAF7;
+      --paper: #0D0D0F;
+      --card: #17171a;
+      --accent: #6d6dff;
+      --muted: #a4a5ac;
+      --line: #1f1f23;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #FAFAF7;
+    --paper: #0D0D0F;
+    --card: #17171a;
+    --accent: #6d6dff;
+    --muted: #a4a5ac;
+    --line: #1f1f23;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Inter", system-ui, sans-serif;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 48px 24px 80px; }
+  .wordmark {
+    font-family: "Unbounded", "Inter", sans-serif;
+    font-weight: 900;
+    font-size: 20px;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin: 0 0 40px;
+  }
+  h1 { font-size: 26px; margin: 0 0 8px; text-wrap: balance; }
+  p.lead { color: var(--muted); font-size: 15px; margin: 0 0 36px; }
+  section { margin-bottom: 32px; }
+  h2 { font-size: 16px; margin: 0 0 10px; }
+  ol, ul { margin: 0; padding-left: 20px; }
+  li { margin-bottom: 8px; font-size: 14.5px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 20px 22px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; padding: 10px 10px 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  .cta {
+    display: inline-block;
+    background: var(--ink);
+    color: var(--paper);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14.5px;
+    padding: 12px 20px;
+    border-radius: 10px;
+  }
+  footer { margin-top: 48px; font-size: 12.5px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="wordmark">tekensa</p>
+  <h1>Delete your account</h1>
+  <p class="lead">You can delete your Tekensa account and its data from inside the app, or from
+    here if you no longer have it installed.</p>
+
+  <section>
+    <h2>From the app</h2>
+    <div class="card">
+      <ol>
+        <li>Open Tekensa and go to <strong>Settings → Account</strong>.</li>
+        <li>Tap <strong>Delete account</strong>.</li>
+        <li>Confirm. Deletion starts immediately and cannot be undone.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <h2>Without the app</h2>
+    <div class="card">
+      <p style="margin:0 0 14px; font-size: 14.5px;">Email us from the address on your account and
+        we'll delete it for you. Include your account email so we can find the right account.</p>
+      <a class="cta" href="mailto:privacy@tekensa.com?subject=Delete%20my%20Tekensa%20account">
+        privacy@tekensa.com
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2>What gets deleted, and what doesn't</h2>
+    <div class="card">
+      <table>
+        <tr><th>Deleted, in full</th><td>Everything tied to you as an individual: your profile,
+          your own cards, files, and any personal data on the account.</td></tr>
+        <tr><th>Kept, but never yours to anyone</th><td>Where your activity was already folded
+          into a group-level or aggregate pattern shared by several people, that pattern stays —
+          with no name, no identity column, and no way to trace it back to you. It is never shown
+          to any individual person.</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    Deletion is permanent. If you're unsure, you can also just sign out.
+  </footer>
+</div>
+</body>
+</html>
