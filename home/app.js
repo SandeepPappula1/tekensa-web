@@ -152,6 +152,7 @@ function renderHome() {
     ...SPACES.map((s) => rail(s.name, live.filter((i) => i.spaces.includes(s.id)), 'a Space you made', `#/s/${s.id}`)),
     ...Object.keys(CATS).filter((c) => c !== 'unsorted').map((c) => rail(CATS[c], live.filter((i) => i.cat === c), '', `#/c/${c}`)),
     // 0023: the shelver's rows. A reel is not a photo; a thing still being read is not hidden but named.
+    ...Object.keys(LIST_LABEL).map((l) => rail(LIST_LABEL[l], live.filter((i) => i.shelves.includes('list:' + l)), LIST_WHY[l], `#/shelf/list:${l}`)),
     rail('Reels', live.filter((i) => i.shelves.includes('form:reel')), 'every reel you sent', '#/shelf/form:reel'),
     rail('Posts', live.filter((i) => i.shelves.includes('form:post')), 'shared posts', '#/shelf/form:post'),
     rail('Needs another look', live.filter((i) => !i.complete && ['ready', 'limited', 'failed'].includes(i.status)), 'kept, but something is still missing — Tekensa will try again', '#/shelf/incomplete'),
@@ -167,6 +168,15 @@ function topHashtags(items, n) { const c = new Map(); for (const i of items) for
 /* ---------- day by day: every single thing, under the day it arrived; nothing filtered, nothing folded ---------- */
 function dayKey(d) { return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); }
 function dayLabel(key) { const d = new Date(key + 'T00:00:00+05:30'); const days = Math.round((new Date(dayKey(new Date()) + 'T00:00:00+05:30') - d) / 864e5); const long = d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined }); return days === 0 ? `Today · ${long}` : days === 1 ? `Yesterday · ${long}` : long; }
+/* ---------- your lists: what you meant to do with what you sent, read from your own words ---------- */
+const LIST_LABEL = { watch: 'to watch', go: 'places to go', eat: 'to eat and cook', buy: 'to buy', read: 'to read and learn', kids: 'for the kids', do: 'to do', bucket: 'bucket list' };
+const LIST_WHY = { watch: 'trailers, films, series, "must watch"', go: 'places, hotels, trips, "want to go"', eat: 'restaurants, cafes, recipes, "must try"', buy: 'products, prices, "wishlist"', read: 'articles, books, courses', kids: 'anything for the little one', do: 'ideas, plans, "someday"', bucket: '"bucket list", "one day"' };
+function renderLists() {
+  const groups = Object.keys(LIST_LABEL).map((l) => [l, ITEMS.filter((i) => i.shelves.includes('list:' + l))]).filter(([, items]) => items.length);
+  const n = groups.reduce((s, [, items]) => s + items.length, 0);
+  $('#lists-sub').textContent = groups.length ? `${n} thing${n === 1 ? '' : 's'} across ${groups.length} list${groups.length === 1 ? '' : 's'}, read from your own words. Nothing here was filed by hand.` : 'Nothing on a list yet. Send a trailer with "must watch", a cafe with "when we go", a product with "to buy": the words beside the share become the list.';
+  $('#lists-body').innerHTML = groups.map(([l, items]) => `<section class="rail"><div class="rail-h"><h2>${esc(LIST_LABEL[l])}</h2><span class="why">${esc(LIST_WHY[l])} · ${items.length}</span><a href="#/shelf/list:${l}">See all →</a></div><div class="track">${items.slice(0, 14).map((i) => cardHtml(i)).join('')}</div></section>`).join('');
+}
 function renderDays() {
   const groups = new Map();
   for (const i of ITEMS) { const k = dayKey(i.date); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(i); }
@@ -178,7 +188,7 @@ function renderList(kind, key) {
   let items = ITEMS, title = 'Everything', sub = 'Every single thing you sent, newest first.';
   if (kind === 'shelf') {
     if (key === 'incomplete') { items = ITEMS.filter((i) => !i.complete && ['ready', 'limited', 'failed'].includes(i.status)); title = 'Needs another look'; sub = 'Kept and listed, but the agents could not finish every note. Each one says what is missing; Tekensa asks again on its own.'; }
-    else { let k; try { k = decodeURIComponent(key); } catch { location.hash = '#/home'; return; } items = ITEMS.filter((i) => i.shelves.includes(k)); title = k.startsWith('tag:') ? '#' + k.slice(4) : k.startsWith('form:') ? { reel: 'Reels', post: 'Posts', story: 'Stories', video: 'Videos', photo: 'Photos', voice: 'Voice notes', document: 'Documents', article: 'Articles', note: 'Notes', place: 'Places', product: 'Products', music: 'Music' }[k.slice(5)] ?? k : k; sub = 'A shelf the filer keeps. Nothing here was placed by hand.'; }
+    else { let k; try { k = decodeURIComponent(key); } catch { location.hash = '#/home'; return; } items = ITEMS.filter((i) => i.shelves.includes(k)); title = k.startsWith('list:') ? (LIST_LABEL[k.slice(5)] ?? k) : k.startsWith('tag:') ? '#' + k.slice(4) : k.startsWith('form:') ? { reel: 'Reels', post: 'Posts', story: 'Stories', video: 'Videos', photo: 'Photos', voice: 'Voice notes', document: 'Documents', article: 'Articles', note: 'Notes', place: 'Places', product: 'Products', music: 'Music' }[k.slice(5)] ?? k : k; sub = 'A shelf the filer keeps. Nothing here was placed by hand.'; }
   }
   if (kind === 'c') { items = ITEMS.filter((i) => i.cat === key); title = CATS[key] ?? key; sub = 'A collection Tekensa keeps for you. Nothing here was filed by hand.'; }
   if (kind === 'src') { items = ITEMS.filter((i) => i.src === key); title = 'From ' + (SRCLABEL[key] ?? key); sub = ''; }
@@ -286,6 +296,7 @@ async function openItem(id) {
     if (o.kind === 'hashtags') return `Kept the hashtags it came with: ${esc((v ?? []).map((h) => '#' + h).join(' '))}`;
     if (o.kind === 'mentions') return `Noted the handles: ${esc((v ?? []).map((h) => '@' + h).join(' '))} ${ev}`;
     if (o.kind === 'shelves') return `Put it on ${(v ?? []).length} shelves ${ev}`;
+    if (o.kind === 'lists') return `On your ${esc((v ?? []).map((l) => LIST_LABEL[l] ?? l).join(' and '))} list${(v ?? []).length > 1 ? 's' : ''} ${ev}`;
     if (o.kind === 'validation') return v && v.complete ? `Checked: <b>nothing missing</b> (${esc((v.passed ?? []).join(', '))})` : `Checked: still missing <b>${esc((v && v.missing ? v.missing : []).join(', '))}</b> ${ev}`;
     if (o.kind === 'title') { const how = { 'og:title': 'from the page’s own title', 'first line': 'from the first line of the words', transcript: 'from the transcript', kept: 'kept the title it came with', fallback: 'from the file name or the address' }[o.evidence] ?? ''; return `Titled it ${how}`; }
     return `${esc(o.kind)}: ${esc(typeof v === 'string' ? v : JSON.stringify(v)).slice(0, 160)} ${conf}`;
@@ -491,6 +502,7 @@ function route() {
   if (p[0] === 'home' || p[0] === '') { renderHome(); show('v-home'); setNav('home'); }
   else if (p[0] === 'c' || p[0] === 'src' || p[0] === 'all' || p[0] === 'shelf') { renderList(p[0], p[1]); show('v-list'); setNav('home'); }
   else if (p[0] === 'days') { renderDays(); show('v-days'); setNav('days'); }
+  else if (p[0] === 'lists') { renderLists(); show('v-lists'); setNav('lists'); }
   else if (p[0] === 'spaces') { renderSpaces(); show('v-spaces'); setNav('spaces'); }
   else if (p[0] === 's') { renderSpace(p[1]); show('v-space'); setNav('spaces'); }
   else if (p[0] === 'you') { $('#you-email').textContent = session.user.email ?? ''; show('v-you'); setNav('you'); renderAudit(); renderChannels(); }
