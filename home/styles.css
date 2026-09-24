@@ -513,3 +513,9 @@ textarea.note{width:100%;min-height:64px;background:var(--surf);border:1px solid
 .rail.day .rail-h{position:sticky;top:0;z-index:2;background:var(--bg,var(--surf));padding:10px 0 8px;margin:0 0 10px}
 .rail.day .rail-h h2{font-family:var(--serif);font-weight:700;font-size:24px}
 .tags a.tag{text-decoration:none;color:var(--accent)}
+
+/* the search box's filters (2026-09-26): one row of chips per facet; a chip that is on narrows every result */
+.askchips{display:flex;flex-wrap:wrap;gap:6px 10px;padding:10px 18px;border-bottom:1px solid var(--line);align-items:center}
+.askchips .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin-right:2px}
+.askchips .chip{cursor:pointer;font-size:12px;padding:4px 10px}
+.askchips .sep{flex-basis:100%;height:0}

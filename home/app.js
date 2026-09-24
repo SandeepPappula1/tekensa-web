@@ -361,7 +361,21 @@ async function correct(item, field, value) {
 
 /* ---------- ask ---------- */
 const TRIES = ['What did I save about Japan?', 'Show me the places I saved', 'What did I add last week?', 'Things not in any Space', 'Documents', 'What did I save from Instagram?'];
-function openAsk(q) { $('#ask').classList.add('on'); $('#askin').value = q || ''; renderAsk(q || ''); setTimeout(() => $('#askin').focus(), 50); }
+// ONE SEARCH BOX, FILTERS BESIDE IT (plan 3.5). Typing lists everything relevant as you type; the chips
+// narrow by source, form, category and when. The Ask answer line stays: it counts what the search found.
+const ASK = { src: null, form: null, cat: null, when: null };
+const CHIP_ROWS = [
+  ['source', 'src', [['instagram', 'Instagram'], ['whatsapp', 'WhatsApp'], ['web', 'Web']]],
+  ['form', 'form', [['reel', 'reels'], ['post', 'posts'], ['photo', 'photos'], ['video', 'videos'], ['voice', 'voice'], ['document', 'documents'], ['article', 'articles'], ['note', 'notes'], ['place', 'places'], ['product', 'products']]],
+  ['when', 'when', [['week', 'this week'], ['month', 'this month'], ['year', 'this year'], ['lastyear', 'last year']]],
+  ['category', 'cat', Object.keys(CATS).filter((c) => c !== 'unsorted').map((c) => [c, CATS[c].toLowerCase()])],
+];
+function renderChips() {
+  const any = Object.values(ASK).some(Boolean);
+  $('#askchips').innerHTML = CHIP_ROWS.map(([label, key, opts]) => `<span class="lbl">${label}</span>` + opts.map(([v, t]) => `<button type="button" class="chip${ASK[key] === v ? ' on' : ''}" data-chip="${key}" data-val="${esc(v)}">${esc(t)}</button>`).join('') + '<span class="sep"></span>').join('') + (any ? '<button type="button" class="chip" data-chip="clear">clear filters ✕</button>' : '');
+}
+let askTimer = null;
+function openAsk(q) { $('#ask').classList.add('on'); $('#askin').value = q || ''; renderChips(); renderAsk(q || ''); setTimeout(() => $('#askin').focus(), 50); }
 function closeAsk() { $('#ask').classList.remove('on'); }
 function parseAsk(q) {
   const s = q.toLowerCase(); const facets = []; let cands = ITEMS.slice();
@@ -371,16 +385,34 @@ function parseAsk(q) {
   const words = s.replace(/[?.,!"]/g, ' ').split(/\s+/).filter(Boolean);
   const tk = words.find((w) => typeMap[w]); if (tk) { cands = cands.filter((i) => typeMap[tk].includes(i.type)); facets.push(tk); }
   const catKey = Object.keys(CATS).find((c) => c !== 'unsorted' && s.includes(CATS[c].toLowerCase())); if (catKey && !tk) { cands = cands.filter((i) => i.cat === catKey); facets.push('in ' + CATS[catKey]); }
+  const nowD = new Date(); const y0 = nowD.getFullYear(), m0 = nowD.getMonth();
+  const inYear = (i, y) => i.date.getFullYear() === y, inMonth = (i, y, m) => i.date.getFullYear() === y && i.date.getMonth() === m;
+  const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+  const monthWord = words.find((w) => MONTHS.includes(w) || (w.length === 3 && MONTHS.some((m) => m.startsWith(w) && w !== 'may')));
+  const yearWord = words.find((w) => /^(19|20)\d\d$/.test(w));
   if (/last week|this week|past week/.test(s)) { cands = cands.filter((i) => (Date.now() - i.date) / 864e5 <= 7); facets.push('from the last 7 days'); }
-  else if (/last month|past month/.test(s)) { cands = cands.filter((i) => (Date.now() - i.date) / 864e5 <= 31); facets.push('from the last month'); }
+  else if (/last month|past month/.test(s)) { cands = cands.filter((i) => inMonth(i, m0 === 0 ? y0 - 1 : y0, (m0 + 11) % 12)); facets.push('from last month'); }
+  else if (/this month/.test(s)) { cands = cands.filter((i) => inMonth(i, y0, m0)); facets.push('from this month'); }
+  else if (/last year/.test(s)) { cands = cands.filter((i) => inYear(i, y0 - 1)); facets.push('from ' + (y0 - 1)); }
+  else if (/this year/.test(s)) { cands = cands.filter((i) => inYear(i, y0)); facets.push('from ' + y0); }
+  else if (monthWord) { const mi = MONTHS.findIndex((m) => m.startsWith(monthWord)); const yy = yearWord ? Number(yearWord) : (mi > m0 ? y0 - 1 : y0); cands = cands.filter((i) => inMonth(i, yy, mi)); facets.push('from ' + MONTHS[mi] + ' ' + yy); }
+  else if (yearWord) { cands = cands.filter((i) => inYear(i, Number(yearWord))); facets.push('from ' + yearWord); }
+  // THE CHIPS. What a person tapped narrows everything the words found; the words never override a chip.
+  if (ASK.src) { cands = cands.filter((i) => i.src === ASK.src); facets.push('from ' + (SRCLABEL[ASK.src] ?? ASK.src)); }
+  if (ASK.form) { cands = cands.filter((i) => (i.form ?? i.type) === ASK.form || i.type === ASK.form); facets.push(ASK.form + 's'); }
+  if (ASK.cat) { cands = cands.filter((i) => i.cat === ASK.cat); facets.push('in ' + CATS[ASK.cat]); }
+  if (ASK.when === 'week') { cands = cands.filter((i) => (Date.now() - i.date) / 864e5 <= 7); facets.push('from the last 7 days'); }
+  if (ASK.when === 'month') { cands = cands.filter((i) => inMonth(i, y0, m0)); facets.push('from this month'); }
+  if (ASK.when === 'year') { cands = cands.filter((i) => inYear(i, y0)); facets.push('from ' + y0); }
+  if (ASK.when === 'lastyear') { cands = cands.filter((i) => inYear(i, y0 - 1)); facets.push('from ' + (y0 - 1)); }
   if (/unorganis|never organis|not in a space|no space|unfiled/.test(s)) { cands = cands.filter((i) => !i.spaces.length); facets.push('not in any Space'); }
-  const stop = new Set(['what', 'did', 'i', 'save', 'saved', 'show', 'me', 'find', 'the', 'that', 'things', 'thing', 'about', 'have', 'of', 'for', 'from', 'my', 'a', 'an', 'in', 'on', 'to', 'all', 'everything', 'add', 'added', 'sent', 'send', 'last', 'week', 'month', 'this', 'past', 'not', 'any', 'space', 'is', 'are', 'was', 'were', 'those', 'these', 'some', 'stuff']);
-  const rest = words.filter((w) => !stop.has(w) && !typeMap[w] && !(space && space.name.toLowerCase().includes(w)) && !(srcKey && w.includes(srcKey)) && !(catKey && CATS[catKey].toLowerCase().includes(w)));
-  return { cands, facets, rest, empty: !facets.length && !rest.length };
+  const stop = new Set(['what', 'did', 'i', 'save', 'saved', 'show', 'me', 'find', 'the', 'that', 'things', 'thing', 'about', 'have', 'of', 'for', 'from', 'my', 'a', 'an', 'in', 'on', 'to', 'all', 'everything', 'add', 'added', 'sent', 'send', 'last', 'week', 'month', 'year', 'this', 'past', 'not', 'any', 'space', 'is', 'are', 'was', 'were', 'those', 'these', 'some', 'stuff']);
+  const rest = words.filter((w) => !stop.has(w) && !typeMap[w] && w !== monthWord && w !== yearWord && !(space && space.name.toLowerCase().includes(w)) && !(srcKey && w.includes(srcKey)) && !(catKey && CATS[catKey].toLowerCase().includes(w)));
+  return { cands, facets, rest, empty: !facets.length && !rest.length && !ASK.src && !ASK.form && !ASK.cat && !ASK.when };
 }
 async function renderAsk(q) {
   const B = $('#askbody');
-  if (!q.trim()) { B.innerHTML = `<p class="answer">Ask in your own words. Tekensa searches what you sent, what it read inside, and what you noted.</p><div class="tries">${TRIES.map((t) => `<button data-try="${esc(t)}">${esc(t)}</button>`).join('')}</div>`; return; }
+  if (!q.trim() && !Object.values(ASK).some(Boolean)) { B.innerHTML = `<p class="answer">Type a word, a #tag, a month, a year, or a question. Tekensa searches what you sent, what it read inside, and what you noted; the chips narrow it.</p><div class="tries">${TRIES.map((t) => `<button data-try="${esc(t)}">${esc(t)}</button>`).join('')}</div>`; return; }
   const { cands, facets, rest, empty } = parseAsk(q);
   let results = cands;
   if (rest.length) {
@@ -508,6 +540,13 @@ document.addEventListener('click', async (e) => {
   if (t.id === 'upgo') { doUpload(); return; }
 });
 $('#askfield').addEventListener('click', () => openAsk('')); $('#askm').addEventListener('click', () => openAsk('')); $('#askx').addEventListener('click', closeAsk);
+$('#askin').addEventListener('input', () => { clearTimeout(askTimer); askTimer = setTimeout(() => renderAsk($('#askin').value), 250); });
+$('#askchips').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-chip]'); if (!b) return;
+  if (b.dataset.chip === 'clear') { for (const k of Object.keys(ASK)) ASK[k] = null; }
+  else { const k = b.dataset.chip; ASK[k] = ASK[k] === b.dataset.val ? null : b.dataset.val; }
+  renderChips(); renderAsk($('#askin').value);
+});
 $('#ask').addEventListener('click', (e) => { if (e.target.id === 'ask') closeAsk(); });
 $('#askform').addEventListener('submit', (e) => { e.preventDefault(); renderAsk($('#askin').value); });
 document.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openAsk(''); } if (e.key === 'Escape') { closeAsk(); closeSheet(); $('#upload').classList.remove('on'); } });

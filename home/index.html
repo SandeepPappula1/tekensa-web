@@ -109,7 +109,8 @@
 
 <div class="ask" id="ask" role="dialog" aria-label="Ask">
   <div class="askbox">
-    <form id="askform"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="askin" placeholder="Ask about anything you've sent…" autocomplete="off"><button class="go" type="submit">ask</button><button type="button" id="askx" aria-label="Close" style="color:var(--mute)">✕</button></form>
+    <form id="askform"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="askin" placeholder="search or ask about anything you've sent…" autocomplete="off" type="search" enterkeyhint="search"><button class="go" type="submit">ask</button><button type="button" id="askx" aria-label="Close" style="color:var(--mute)">✕</button></form>
+    <div class="askchips" id="askchips" aria-label="Filters"></div>
     <div class="askbody" id="askbody"></div>
   </div>
 </div>
