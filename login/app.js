@@ -88,16 +88,33 @@
     // eleven, and a person whose account was already linked should be told that
     // rather than shown a celebration for work that did not happen.
     const moved = Number(data.moved || 0);
+    // NAME THE ACCOUNT. The identity is now the person's own row, so its channel and display name
+    // (the Instagram @username, the WhatsApp profile name) can be read back under RLS and said out
+    // loud: a person who linked the wrong inbox should see that here, not discover it later.
+    let who = 'This account';
+    if (data.identity) {
+      const { data: ident } = await sb.from('channel_identities').select('channel, display_name').eq('id', data.identity).maybeSingle();
+      if (ident) who = (ident.channel === 'instagram' ? 'Instagram' : ident.channel === 'whatsapp' ? 'WhatsApp' : ident.channel) + (ident.display_name ? ' ' + ident.display_name : '');
+    }
     if (data.already) {
       $('#lk-done-title').textContent = 'already linked';
-      $('#lk-done-body').textContent = 'This account was already linked to your Tekensa. Everything you have sent is in there.';
+      $('#lk-done-body').textContent = `${who} was already linked to your Tekensa. Everything you have sent is in there.`;
     } else {
       $('#lk-done-title').textContent = 'linked';
-      $('#lk-done-body').textContent = moved === 1
+      $('#lk-done-body').textContent = `${who} is now linked to this email. ` + (moved === 1
         ? 'One thing you sent is now in your Tekensa.'
-        : `${moved} things you sent are now in your Tekensa.`;
+        : `${moved} things you sent are now in your Tekensa.`);
     }
     show('step-done');
+    // THE RECEIPT. The inbox that was just linked is told so, in its own thread, naming this email
+    // (masked) and where to undo it: the one message that always reaches the inbox's real owner.
+    // Fire and forget: the link already happened; a failed receipt is recorded server-side, never shown.
+    if (data.identity && !data.already && cfg.linkedNoticeUrl) {
+      try {
+        const { data: sess } = await sb.auth.getSession();
+        if (sess?.session) fetch(cfg.linkedNoticeUrl, { method: 'POST', headers: { authorization: 'Bearer ' + sess.session.access_token, apikey: cfg.supabaseAnonKey, 'content-type': 'application/json' }, body: JSON.stringify({ identity: data.identity }) }).catch(() => {});
+      } catch {}
+    }
   });
 
   // A code pasted from the message should just work.
@@ -105,6 +122,7 @@
     e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6);
   });
 
-  sb.auth.onAuthStateChange(() => { void refreshStep(); });
+  // once linked the done step stays: SIGNED_IN fires again on tab refocus and TOKEN_REFRESHED hourly (review, 2026-09-25)
+  sb.auth.onAuthStateChange(() => { if ($('#step-done').hidden) void refreshStep(); });
   void refreshStep();
 })();

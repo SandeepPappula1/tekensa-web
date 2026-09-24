@@ -7,7 +7,7 @@ const $ = (s) => document.querySelector(s);
 const safeUrl = (u) => { try { const x = new URL(String(u ?? ''), location.href); return (x.protocol === 'https:' || x.protocol === 'http:') ? x.href : ''; } catch { return ''; } };
 // a thumbnail that fails to load is removed; delegated, because the CSP forbids inline handlers
 document.addEventListener('error', (e) => { if (e.target && e.target.tagName === 'IMG' && e.target.classList.contains('thumb')) e.target.remove(); }, true);
-const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('on'), 2200); }
 function hash(s) { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
 
@@ -19,12 +19,15 @@ let addKey = null, refreshTimer = null, refreshRuns = 0;   // T09 idempotency ke
 // T10: a heartbeat every 20 s while the tab is visible: one tiny read (row count + latest change); a difference means
 // something arrived from another door (WhatsApp, another device) or finished, and the page reloads its own view.
 let heartbeatSeen = null;
+const editing = () => { const a = document.activeElement; return !!(a && $('#sheet') && $('#sheet').contains(a) && (a.tagName === 'TEXTAREA' || a.tagName === 'INPUT')); };
 async function heartbeat() {
   if (!session || document.visibilityState === 'hidden') return;
   const { data, count } = await sb.from('captures').select('updated_at', { count: 'exact' }).is('deleted_at', null).order('updated_at', { ascending: false }).limit(1);
   const seen = `${count ?? 0}:${data?.[0]?.updated_at ?? ''}`;
-  if (heartbeatSeen !== null && seen !== heartbeatSeen) { await loadAll(); route(); if (openId) openItem(openId); }
-  heartbeatSeen = seen;
+  // a change is applied only when nobody is mid-edit: a note being typed or a tag being added must never be wiped
+  // by a rebuild; the sheet's own viewed_at write is also what bumps updated_at, so it is skipped (review, 2026-09-25)
+  if (heartbeatSeen !== null && seen !== heartbeatSeen && !editing()) { await loadAll(); route(); if (openId) openItem(openId); }
+  if (!editing()) heartbeatSeen = seen;
 }
 setInterval(() => { heartbeat().catch(() => {}); }, 20000);
 
@@ -46,7 +49,8 @@ async function loadAll() {
   // T10: while anything is still being read (a WhatsApp arrival, a reprocess, an add from another device), refresh on our own
   const inFlight = ITEMS.some((i) => ['received', 'preserved', 'extracting', 'understanding', 'classifying', 'indexing'].includes(i.status));
   clearTimeout(refreshTimer);
-  if (inFlight && refreshRuns < 120) { refreshTimer = setTimeout(async () => { refreshRuns++; await loadAll(); route(); if (openId) openItem(openId); }, 5000); } else if (!inFlight) refreshRuns = 0;
+  const tick = async () => { refreshRuns++; if (editing()) { refreshTimer = setTimeout(tick, 5000); return; } await loadAll(); route(); if (openId) openItem(openId); };
+  if (inFlight && refreshRuns < 120) { refreshTimer = setTimeout(tick, 5000); } else if (!inFlight) refreshRuns = 0;
 }
 function toItem(r, spaces, corr) {
   const p = r.platform, f = r.facets ?? {};
@@ -139,7 +143,7 @@ function renderHome() {
   $('#greet').innerHTML = `${h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening'}.`;
   $('#greetsub').textContent = live.length ? `${live.length} thing${live.length > 1 ? 's' : ''} you didn't want to lose · organised for you.` : 'Send us anything you don’t want to lose.';
   const B = $('#home-body');
-  if (!live.length) { B.innerHTML = `<div class="empty"><div><h1>Send us anything you don't want to lose.</h1><p>A link, a screenshot, a voice note, a PDF, a thought. Don't sort it. Just send it.</p><div class="ways"><div class="way"><b>+ add</b><small>Paste a link or text, or pick a file.</small></div><div class="way"><b>Instagram</b><small>DM anything to <a href="https://instagram.com/tekensa" target="_blank" rel="noopener">@tekensa</a>. The reply sends you a code; enter it at <a href="/login/">tekensa.com/login</a> and it all lands here.</small></div><div class="way"><b>WhatsApp</b><small>Coming: the same, once the number is live.</small></div></div></div></div>`; return; }
+  if (!live.length) { B.innerHTML = `<div class="empty"><div><h1>Send us anything you don't want to lose.</h1><p>A link, a screenshot, a voice note, a PDF, a thought. Don't sort it. Just send it.</p><div class="ways"><div class="way"><b>+ add</b><small>Paste a link or text, or pick a file.</small></div><div class="way"><b>Instagram</b><small>DM anything to <a href="https://instagram.com/tekensa" target="_blank" rel="noopener">@tekensa</a>. The reply sends you a code; enter it at <a href="/login/?c=">tekensa.com/login</a> and it all lands here.</small></div><div class="way"><b>WhatsApp</b><small>Coming: the same, once the number is live.</small></div></div></div></div>`; return; }
   if (layout === 'grid') { B.innerHTML = gridHtml(live); return; }
   const processing = live.filter((i) => !['ready', 'limited'].includes(i.status));
   const parts = [
@@ -174,7 +178,7 @@ function renderList(kind, key) {
   let items = ITEMS, title = 'Everything', sub = 'Every single thing you sent, newest first.';
   if (kind === 'shelf') {
     if (key === 'incomplete') { items = ITEMS.filter((i) => !i.complete && ['ready', 'limited', 'failed'].includes(i.status)); title = 'Needs another look'; sub = 'Kept and listed, but the agents could not finish every note. Each one says what is missing; Tekensa asks again on its own.'; }
-    else { const k = decodeURIComponent(key); items = ITEMS.filter((i) => i.shelves.includes(k)); title = k.startsWith('tag:') ? '#' + k.slice(4) : k.startsWith('form:') ? { reel: 'Reels', post: 'Posts', story: 'Stories', video: 'Videos', photo: 'Photos', voice: 'Voice notes', document: 'Documents', article: 'Articles', note: 'Notes', place: 'Places', product: 'Products', music: 'Music' }[k.slice(5)] ?? k : k; sub = 'A shelf the filer keeps. Nothing here was placed by hand.'; }
+    else { let k; try { k = decodeURIComponent(key); } catch { location.hash = '#/home'; return; } items = ITEMS.filter((i) => i.shelves.includes(k)); title = k.startsWith('tag:') ? '#' + k.slice(4) : k.startsWith('form:') ? { reel: 'Reels', post: 'Posts', story: 'Stories', video: 'Videos', photo: 'Photos', voice: 'Voice notes', document: 'Documents', article: 'Articles', note: 'Notes', place: 'Places', product: 'Products', music: 'Music' }[k.slice(5)] ?? k : k; sub = 'A shelf the filer keeps. Nothing here was placed by hand.'; }
   }
   if (kind === 'c') { items = ITEMS.filter((i) => i.cat === key); title = CATS[key] ?? key; sub = 'A collection Tekensa keeps for you. Nothing here was filed by hand.'; }
   if (kind === 'src') { items = ITEMS.filter((i) => i.src === key); title = 'From ' + (SRCLABEL[key] ?? key); sub = ''; }
@@ -246,7 +250,7 @@ async function openItem(id) {
   const prov = `<div class="prov"><span>${srcHtml(i)}</span><span>${esc(i.type)}</span><span>saved <b>${i.date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</b> · ${ago(i.date)}</span>${i.conf != null && !i.correctedFields.length ? `<span>confidence <b>${Math.round(i.conf * 100)}%</b></span>` : ''}</div>`;
 
   // ---- evidence: the original, verbatim, and the text read from inside it ----
-  const orig = i.url ? `<div class="orig"><div class="o"><b>Original link</b><small>${esc(i.url)}</small></div><a class="btn y" href="${esc(safeUrl(i.url))}" target="_blank" rel="noopener">Open ↗</a></div>`
+  const orig = i.url ? `<div class="orig"><div class="o"><b>Original link</b><small>${esc(i.url)}</small></div>${safeUrl(i.url) ? `<a class="btn y" href="${esc(safeUrl(i.url))}" target="_blank" rel="noopener">Open ↗</a>` : ''}</div>`
     : media && i.type === 'photo' ? `<div class="orig"><div class="o"><b>Original photo</b><small>kept exactly as sent</small></div><a class="btn y" href="${esc(media)}" target="_blank" rel="noopener">Open</a></div>`
     : media && i.type === 'voice' ? `<div class="orig"><div class="o"><b>Original recording</b><audio controls src="${esc(media)}"></audio></div></div>`
     : media && i.type === 'video' ? `<div class="orig"><div class="o"><b>Original video</b><video controls src="${esc(media)}" preload="metadata"></video></div></div>`
@@ -330,7 +334,7 @@ async function renderChannels() {
   const el = $('#you-channels'); if (!el) return;
   const { data, error } = await sb.from('channel_identities').select('id, channel, display_name, claimed_at').order('claimed_at', { ascending: true });
   if (error) { el.textContent = 'Could not look right now.'; return; }
-  if (!data || !data.length) { el.innerHTML = 'Nothing linked yet. DM anything to <a href="https://instagram.com/tekensa" target="_blank" rel="noopener">@tekensa</a> and enter the code at <a href="/login/">tekensa.com/login</a>.'; return; }
+  if (!data || !data.length) { el.innerHTML = 'Nothing linked yet. DM anything to <a href="https://instagram.com/tekensa" target="_blank" rel="noopener">@tekensa</a> and enter the code at <a href="/login/?c=">tekensa.com/login</a>.'; return; }
   el.innerHTML = data.map((c) => `<span class="chip">${esc(c.channel)}${c.display_name ? ' · ' + esc(c.display_name) : ''}</span> <button class="btn" data-unlink="${c.id}">unlink</button>`).join('<br>') + '<br><small class="fine">Unlinking keeps everything you already sent. New messages from that account are treated as a stranger\'s again until it is linked.</small>';
 }
 document.addEventListener('click', async (e) => {
@@ -424,18 +428,8 @@ async function pollUntilReady(id, tries = 0) {
   setTimeout(() => pollUntilReady(id, tries + 1), 4000);
 }
 
-/* ---------- sign in ---------- */
-function renderSignin(step, email) {
-  const B = $('#signin-body');
-  if (step === 'code') B.innerHTML = `<h1>Check your email.</h1><p>We sent a 6-digit code to <b>${esc(email)}</b>.</p><input id="si-code" inputmode="numeric" placeholder="123456" autocomplete="one-time-code"><div class="row"><button class="btn y" id="si-verify">sign in</button><button class="btn" id="si-back">back</button></div><p class="err" id="si-err"></p>`;
-  else B.innerHTML = `<h1>Send us anything you don't want to lose.</h1><p>Sign in with your email. No password to remember; a code arrives each time.</p><input id="si-email" type="email" placeholder="you@example.com" autocomplete="email"><div class="row"><button class="btn y" id="si-send">send me a code</button></div><p class="err" id="si-err"></p><details><summary>have a password instead?</summary><div class="row" style="margin-top:8px"><input id="si-pass" type="password" placeholder="password" style="flex:1"><button class="btn" id="si-pw">sign in</button></div></details><p class="fine">Everything you send is kept on Tekensa's server, readable only by you, and deleted when you say so.</p>`;
-}
 document.addEventListener('click', async (e) => {
   const t = e.target;
-  if (t.id === 'si-send') { const email = $('#si-email').value.trim(); if (!email) return; const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } }); if (error) { $('#si-err').textContent = error.message; return; } renderSignin('code', email); return; }
-  if (t.id === 'si-back') { renderSignin('email'); return; }
-  if (t.id === 'si-verify') { const email = $('#signin-body b').textContent, token = $('#si-code').value.trim(); const { error } = await sb.auth.verifyOtp({ email, token, type: 'email' }); if (error) { $('#si-err').textContent = error.message; return; } return; }
-  if (t.id === 'si-pw') { const email = $('#si-email').value.trim(), password = $('#si-pass').value; const { error } = await sb.auth.signInWithPassword({ email, password }); if (error) $('#si-err').textContent = error.message; return; }
   if (t.id === 'signout') { await sb.auth.signOut(); return; }
   if (t.id === 'erase-start') { $('#erase-confirm').hidden = false; $('#erase-words').value = ''; $('#erase-go').disabled = true; $('#erase-words').focus(); return; }
   if (t.id === 'erase-cancel') { $('#erase-confirm').hidden = true; return; }
@@ -460,7 +454,7 @@ document.addEventListener('input', (e) => { if (e.target.id === 'erase-words') $
 function setNav(k) { document.querySelectorAll('[data-nav]').forEach((a) => a.classList.toggle('on', a.dataset.nav === k)); }
 function show(id) { document.querySelectorAll('.view').forEach((v) => v.classList.remove('on')); $('#' + id).classList.add('on'); window.scrollTo({ top: 0 }); }
 function route() {
-  if (!session) { renderSignin('email'); show('v-signin'); return; }
+  if (!session) { location.replace('/login/'); return; }
   const p = (location.hash || '#/home').slice(2).split('/');
   if (p[0] === 'home' || p[0] === '') { renderHome(); show('v-home'); setNav('home'); }
   else if (p[0] === 'c' || p[0] === 'src' || p[0] === 'all' || p[0] === 'shelf') { renderList(p[0], p[1]); show('v-list'); setNav('home'); }
@@ -527,10 +521,10 @@ document.addEventListener('dragleave', (e) => { const d = e.target.closest('[dat
 document.addEventListener('drop', async (e) => { const d = e.target.closest('[data-drop],[data-space]'); if (!d || !dragId) return; e.preventDefault(); const sid = d.dataset.drop || d.dataset.space; if (sid === '__new') await newSpace(dragId); else await addToSpace(dragId, sid); $('#dock').classList.remove('on'); dragId = null; });
 
 /* ---------- boot ---------- */
-sb.auth.onAuthStateChange(async (evt, s) => {
-  session = s;
-  if (evt === 'SIGNED_OUT') { location.replace('/login/'); return; }
-  if (session) { $('#avatar').textContent = (session.user.email ?? '·')[0].toUpperCase(); await loadAll(); }
-  route();
+// /login is the one way in. INITIAL_SESSION is handled by getSession below (one load, not two); SIGNED_IN fires again
+// on tab refocus and TOKEN_REFRESHED hourly, neither of which is a reason to rebuild the view (review, 2026-09-25)
+sb.auth.onAuthStateChange((evt, s) => {
+  if (evt === 'SIGNED_OUT') { session = null; location.replace('/login/'); return; }
+  if (s) session = s;
 });
-sb.auth.getSession().then(async ({ data }) => { session = data.session; if (!session) { location.replace('/login/'); return; } if (session) { $('#avatar').textContent = (session.user.email ?? '·')[0].toUpperCase(); await loadAll(); } route(); });
+sb.auth.getSession().then(async ({ data }) => { session = data.session; if (!session) { location.replace('/login/'); return; } $('#avatar').textContent = (session.user.email ?? '·')[0].toUpperCase(); await loadAll(); route(); });

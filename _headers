@@ -7,7 +7,11 @@
   Referrer-Policy: no-referrer
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
+/home
+  Cache-Control: no-store
 /home/*
+  Cache-Control: no-store
+/login
   Cache-Control: no-store
 /login/*
   Cache-Control: no-store
