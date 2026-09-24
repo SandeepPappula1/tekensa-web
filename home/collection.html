@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://mahlfdtxrnrrqgyhzjhs.supabase.co; media-src 'self' blob: https://mahlfdtxrnrrqgyhzjhs.supabase.co; connect-src https://mahlfdtxrnrrqgyhzjhs.supabase.co; frame-src https://mahlfdtxrnrrqgyhzjhs.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
+<meta name="referrer" content="no-referrer">
+<title>Your collection</title>
+<link rel="stylesheet" href="./styles.css" />
+<style>
+  /* Scoped to this page. `styles.css` belongs to index.html; borrowing its look
+     without editing it is the point, so nothing here redefines a shared class. */
+  .col-wrap { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+  .col-head { display: flex; align-items: baseline; gap: .75rem; flex-wrap: wrap; }
+  .col-head h1 { margin: 0; }
+  .col-count { opacity: .7; font-size: .95rem; }
+  .col-kinds { display: flex; gap: .5rem; flex-wrap: wrap; margin: 1rem 0 1.5rem; }
+  /* `.btn` from styles.css does the pill; this only says which one you are on. */
+  .col-kind { opacity: .55; }
+  .col-kind[aria-current='page'] { opacity: 1; }
+  .col-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 1rem; }
+  .col-card { border: 1px solid rgba(128,128,128,.25); border-radius: .75rem; overflow: hidden; display: flex; flex-direction: column; }
+  .col-thumb { aspect-ratio: 16 / 10; width: 100%; object-fit: cover; background: rgba(128,128,128,.12); display: block; }
+  .col-thumb-none { aspect-ratio: 16 / 10; background: rgba(128,128,128,.12); display: grid; place-items: center; font-size: .8rem; opacity: .6; }
+  .col-body { padding: .7rem .8rem .9rem; display: flex; flex-direction: column; gap: .35rem; }
+  .col-title { font-weight: 600; line-height: 1.25; }
+  .col-meta { font-size: .8rem; opacity: .7; display: flex; gap: .5rem; flex-wrap: wrap; }
+  .col-badge { font-size: .72rem; text-transform: lowercase; border: 1px solid currentColor; border-radius: 999px; padding: 0 .45rem; opacity: .8; }
+  .col-note { opacity: .75; margin-top: 1.5rem; }
+  .col-empty { opacity: .8; margin-top: 2rem; line-height: 1.6; }
+  .col-err { color: #b3261e; margin-top: 1rem; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main class="col-wrap">
+  <div class="col-head">
+    <h1 id="col-title">Your collection</h1>
+    <span id="col-count" class="col-count"></span>
+  </div>
+
+  <nav id="col-kinds" class="col-kinds" aria-label="Collections"></nav>
+
+  <section id="col-signin" hidden>
+    <p>Sign in to see your things. <a href="./index.html">Open Tekensa</a></p>
+  </section>
+
+  <section id="col-loading" class="col-note">Looking…</section>
+
+  <section id="col-empty" class="col-empty" hidden></section>
+
+  <div id="col-grid" class="col-grid" hidden></div>
+
+  <p id="col-more" class="col-note" hidden></p>
+  <div id="col-err" class="col-err" role="alert" aria-live="polite"></div>
+
+  <p class="col-note"><a href="./index.html">← everything</a></p>
+</main>
+
+<script src="vendor/supabase-2.116.0.js"></script>
+<script src="config.js"></script>
+<script src="types.js"></script>
+<script src="collection.js"></script>
+</body>
+</html>

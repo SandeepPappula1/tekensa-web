@@ -3,23 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="no-referrer">
 <title>Page not found — Tekensa</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --ink: #0E1013;
-    --paper: #F6F6F4;
-    --muted: #63666B;
-    --line: #DEDDD8;
-    --font-sans: "General Sans", system-ui, sans-serif;
+    --ink: #F1EFEA; --paper: #0F0F12; --card: #17171C; --surface: #17171C; --muted: #9A9AA2; --line: rgba(241,239,234,0.12);
+    --accent: #7C7CFF; --on-accent: #FFFFFF;
+    --font-sans: "Inter", system-ui, sans-serif; --font-voice: "Unbounded", system-ui, sans-serif;
   }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) { --ink: #F2F3F1; --paper: #0E1013; --muted: #A0A2A5; --line: #24262A; }
-  }
-  :root[data-theme="dark"] { --ink: #F2F3F1; --paper: #0E1013; --muted: #A0A2A5; --line: #24262A; }
+  html { color-scheme: dark; }
+  h1, h2, .wordmark { font-family: var(--font-voice); font-weight: 700; }
+  .wordmark { font-weight: 900; }
+  a { color: var(--accent); }
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font-sans);
@@ -30,8 +30,8 @@
   h1 { font-size: 24px; margin: 0 0 10px; font-weight: 600; }
   p.sub { color: var(--muted); font-size: 15px; line-height: 1.6; margin: 0 0 28px; }
   a.cta {
-    display: inline-block; background: var(--ink); color: var(--paper); text-decoration: none;
-    font-weight: 500; font-size: 14.5px; padding: 12px 22px; border-radius: 3px;
+    display: inline-block; background: var(--accent); color: var(--on-accent); text-decoration: none;
+    font-weight: 500; font-size: 14.5px; padding: 12px 22px; border-radius: 999px;
   }
 </style>
 </head>

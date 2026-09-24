@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://mahlfdtxrnrrqgyhzjhs.supabase.co; media-src 'self' blob: https://mahlfdtxrnrrqgyhzjhs.supabase.co; connect-src https://mahlfdtxrnrrqgyhzjhs.supabase.co; frame-src https://mahlfdtxrnrrqgyhzjhs.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tekensa · your things, day by day</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;900&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="styles.css">
+<style>
+/* page-only additions over the shared design system */
+.signin{max-width:440px;margin:60px auto;display:flex;flex-direction:column;gap:14px}
+.signin h1{font-family:var(--serif);font-weight:400;font-size:40px;line-height:1.05;margin:0}
+.signin p{color:var(--ink2);margin:0}
+.signin input{background:var(--surf);border:1px solid var(--line2);border-radius:12px;color:var(--ink);padding:14px 16px;font:inherit;font-size:17px}
+.signin .row{display:flex;gap:8px;flex-wrap:wrap}
+.signin .fine{font-family:var(--mono);font-size:11px;color:var(--mute);line-height:1.6}
+.signin details summary{color:var(--mute);font-size:12px;cursor:pointer}
+.status-pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.status-pill i{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pulse 1.2s infinite}
+.err{color:#EF8A7E;font-size:13px}
+.thumb{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.sheet .hero img.thumb{position:static;border-radius:14px;max-height:360px;width:auto;max-width:100%}
+.orig audio,.orig video{width:100%;margin-top:8px}
+.empty-rail{color:var(--mute);font-size:14px;padding:20px 0}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="wordmark" href="#/home"><b>tekensa</b></a>
+  <div class="askfield" id="askfield" role="button" tabindex="0" aria-label="Ask">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <span>Ask anything you've sent…</span><span class="k">⌘K</span>
+  </div>
+  <nav class="topnav">
+    <a href="#/home" data-nav="home">home</a>
+    <a href="#/days" data-nav="days">days</a>
+    <a href="#/spaces" data-nav="spaces">spaces</a>
+  </nav>
+  <button class="addbtn" id="addbtn">+ add</button>
+  <a href="#/you" class="avatar" id="avatar" aria-label="You">·</a>
+</header>
+
+<main>
+  <section class="view" id="v-signin"><div class="signin" id="signin-body"></div></section>
+
+  <section class="view" id="v-home">
+    <div class="greet"><div><h1 id="greet"></h1><p id="greetsub"></p></div>
+      <div class="layouts" role="tablist"><button data-layout="rails" class="on">rails</button><button data-layout="grid">grid</button></div></div>
+    <div id="home-body"></div>
+  </section>
+
+  <section class="view" id="v-days">
+    <div class="page-h"><div><h1>day by day</h1><p id="days-sub"></p></div></div>
+    <div id="days-body"></div>
+  </section>
+
+  <section class="view" id="v-list">
+    <a class="back" href="#/home">← Home</a>
+    <div class="page-h"><div><h1 id="list-title"></h1><p id="list-sub"></p></div></div>
+    <div id="list-body"></div>
+  </section>
+
+  <section class="view" id="v-spaces">
+    <div class="page-h"><div><h1>Your Spaces</h1><p>Places you arrange things on purpose. Everything else, Tekensa keeps organised for you.</p></div></div>
+    <div class="spaces" id="spaces-grid"></div>
+    <div class="rail" style="margin-top:40px"><div class="rail-h"><h2>Not in any Space yet</h2><span class="why">drag one onto a Space above if you want to</span></div><div class="track" id="spaces-pool"></div></div>
+  </section>
+
+  <section class="view" id="v-space">
+    <a class="back" href="#/spaces">← Spaces</a>
+    <div class="page-h"><div><h1 id="space-title"></h1><p id="space-sub"></p></div>
+      <div style="margin-left:auto;display:flex;gap:8px"><button class="chip" id="space-rename">rename</button><button class="chip" id="space-delete">delete</button></div></div>
+    <div id="space-body"></div>
+    <div class="rail" style="margin-top:34px"><div class="rail-h"><h2>Drag anything in from here</h2></div><div class="track" id="space-pool"></div></div>
+  </section>
+
+  <section class="view" id="v-you">
+    <div class="page-h"><div><h1>you</h1><p id="you-email"></p></div></div>
+    <div class="notes">
+      <p>Everything you send lands in one collection, kept on Tekensa's server, readable only by you, and deleted when you say so.</p>
+      <div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="signout">sign out</button></div>
+      <h3 style="margin-top:28px">delete everything</h3>
+      <p>Removes every file, every thing you sent, every Space and your sign-in from Tekensa's server. There is no undo and no copy kept.</p>
+      <div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="erase-start">delete everything…</button></div>
+      <div id="erase-confirm" hidden style="margin-top:10px"><p>Type <b>DELETE EVERYTHING</b> to confirm.</p><div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><input id="erase-words" type="text" autocomplete="off" placeholder="DELETE EVERYTHING" style="flex:1;min-width:200px"><button class="btn" id="erase-go" disabled>delete everything</button><button class="btn" id="erase-cancel">keep my things</button></div><p class="err" id="erase-err"></p></div>
+      <h3 style="margin-top:28px">your things, counted</h3>
+      <p id="you-audit">Counting…</p>
+      <h3 style="margin-top:28px">linked channels</h3>
+      <p id="you-channels">Looking…</p>
+      <h3 style="margin-top:28px">ways in</h3>
+      <p>Web: the <b>+ add</b> button. Instagram: DM anything to the Tekensa account; the reply tells you how to link. WhatsApp: the same, once the number is live.</p>
+    </div>
+  </section>
+</main>
+
+<nav class="bottomnav">
+  <a href="#/home" data-nav="home">home</a>
+  <a href="#/days" data-nav="days">days</a>
+  <a href="#/spaces" data-nav="spaces">spaces</a>
+  <button class="askm" id="askm">ask</button>
+  <a href="#/you" data-nav="you">you</a>
+</nav>
+
+<div class="dock" id="dock" aria-hidden="true"><span class="lbl">Drop into</span></div>
+<div class="scrim" id="scrim"></div>
+<aside class="sheet" id="sheet" aria-label="Item"></aside>
+
+<div class="ask" id="ask" role="dialog" aria-label="Ask">
+  <div class="askbox">
+    <form id="askform"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="askin" placeholder="Ask about anything you've sent…" autocomplete="off"><button class="go" type="submit">ask</button><button type="button" id="askx" aria-label="Close" style="color:var(--mute)">✕</button></form>
+    <div class="askbody" id="askbody"></div>
+  </div>
+</div>
+
+<div class="upload" id="upload" role="dialog" aria-label="Add something"></div>
+<div class="toast" id="toast"></div>
+
+<script src="vendor/supabase-2.116.0.js"></script>
+<script src="config.js"></script>
+<script src="types.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

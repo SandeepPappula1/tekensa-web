@@ -1,5 +1,7 @@
 User-agent: *
 Allow: /
 Disallow: /join/
+Disallow: /login/
+Disallow: /home/
 
 Sitemap: https://tekensa.com/sitemap.xml

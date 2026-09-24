@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="no-referrer">
+<title>Tekensa privacy</title>
+<meta name="description" content="Tekensa's privacy policy: what personal data is processed, why, for how long, who processes it, your rights under the Digital Personal Data Protection Act, 2023, and how to delete everything.">
+<link rel="canonical" href="https://tekensa.com/privacy/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #F1EFEA; --paper: #0F0F12; --card: #17171C; --surface: #17171C; --muted: #9A9AA2; --line: rgba(241,239,234,0.12);
+    --accent: #7C7CFF; --on-accent: #FFFFFF;
+    --font-sans: "Inter", system-ui, sans-serif; --font-voice: "Unbounded", system-ui, sans-serif;
+  }
+  html { color-scheme: dark; }
+  h1, h2, .wordmark { font-family: var(--font-voice); font-weight: 700; }
+  .wordmark { font-weight: 900; }
+  a { color: var(--accent); }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 48px 24px 80px; }
+  .wordmark {
+    font-weight: 600;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin: 0 0 44px;
+  }
+  h1 { font-size: 26px; margin: 0 0 8px; text-wrap: balance; font-weight: 600; }
+  p.lead { color: var(--muted); font-size: 15px; margin: 0 0 36px; }
+  section { margin-bottom: 32px; }
+  h2 { font-size: 16px; margin: 0 0 10px; font-weight: 600; }
+  ol, ul { margin: 0; padding-left: 20px; }
+  li { margin-bottom: 8px; font-size: 14.5px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 20px 22px;
+  }
+  .card { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 520px; }
+  th, td { text-align: left; padding: 10px 10px 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  .cta {
+    display: inline-block;
+    background: var(--accent);
+    color: var(--on-accent);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 14.5px;
+    padding: 12px 20px;
+    border-radius: 999px;
+  }
+  footer { margin-top: 48px; font-size: 12.5px; color: var(--muted); }
+  .toc { display: grid; gap: 4px; font-size: 14px; margin: 0 0 40px; padding-left: 0; list-style: none; }
+  .toc a { color: var(--muted); text-decoration: none; }
+  .toc a:hover { color: var(--ink); }
+  h2 { margin-top: 40px; }
+  h3 { font-size: 15px; margin: 18px 0 6px; font-weight: 600; }
+  p { font-size: 14.5px; margin: 0 0 12px; }
+  .note { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px 20px; font-size: 14px; color: var(--muted); }
+  .fill { color: var(--accent); font-weight: 600; }
+  dl { margin: 0; } dt { font-weight: 600; font-size: 14.5px; margin-top: 12px; } dd { margin: 4px 0 0; font-size: 14.5px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="wordmark">tekensa</p>
+  <h1>Privacy policy</h1>
+  <p class="lead">Effective <span class="fill">[date]</span>. Version 1.0. This policy is the notice required by section 5 of the Digital Personal Data Protection Act, 2023 ("DPDP Act"), and it applies to the Tekensa service at tekensa.com, the Tekensa mobile application, and the Tekensa accounts on Instagram and WhatsApp.</p>
+
+  <div class="note">In plain words: what you send Tekensa is kept exactly as sent, read so it can be filed and found again, held for as long as you keep your account, and deleted when you say so. Before you have an account, what you DM is held for 30 days and then deleted. Nothing is sold, nothing trains a model, and anything that looks like a password is never read. The rest of this page says the same thing in the detail the law asks for.</div>
+
+  <ol class="toc">
+    <li><a href="#who">1. Who is responsible</a></li>
+    <li><a href="#scope">2. Who this applies to</a></li>
+    <li><a href="#data">3. The personal data we process</a></li>
+    <li><a href="#purposes">4. Why we process it, and on what basis</a></li>
+    <li><a href="#never">5. What we never do</a></li>
+    <li><a href="#processors">6. Who processes it on our behalf</a></li>
+    <li><a href="#retention">7. How long we keep it</a></li>
+    <li><a href="#security">8. How we protect it</a></li>
+    <li><a href="#rights">9. Your rights</a></li>
+    <li><a href="#consent">10. Consent, and withdrawing it</a></li>
+    <li><a href="#children">11. Children</a></li>
+    <li><a href="#transfers">12. Where your data is stored and transferred</a></li>
+    <li><a href="#breach">13. If something goes wrong</a></li>
+    <li><a href="#meta">14. Instagram and WhatsApp in particular</a></li>
+    <li><a href="#cookies">15. Cookies and local storage</a></li>
+    <li><a href="#changes">16. Changes to this policy</a></li>
+    <li><a href="#contact">17. Grievances and contact</a></li>
+  </ol>
+
+  <section id="who">
+    <h2>1. Who is responsible</h2>
+    <p>The Data Fiduciary (the person who decides why and how your personal data is processed) is <span class="fill">[legal name of the entity or proprietor]</span>, <span class="fill">[registered address, India]</span>, operating as "Tekensa" ("we", "us"). Our Grievance Officer is named in section 17.</p>
+  </section>
+
+  <section id="scope">
+    <h2>2. Who this applies to</h2>
+    <p>This policy applies to you if you (a) send a message to the Tekensa account on Instagram or WhatsApp, whether or not you have a Tekensa account; (b) sign in at tekensa.com; or (c) use the Tekensa mobile application. Content kept only on your phone by the mobile application, and never sent to us, is not processed by us and is outside this policy except where you choose to back it up (section 3.6).</p>
+  </section>
+
+  <section id="data">
+    <h2>3. The personal data we process</h2>
+    <h3>3.1 What you send</h3>
+    <p>The message or item itself, exactly as sent: text, a link, a photo, a video or reel, a voice note, a document. Some of these may contain personal data of yours or of other people (a name in a photograph, a voice, an address on a bill). We process it only for the purposes in section 4.</p>
+    <h3>3.2 What we derive from it</h3>
+    <p>A title, a category, tags, a short description, text found inside an image or document, a transcript of a voice note, dates, amounts, and named products or brands. Each derived note records whether a rule found it or a model inferred it, and you can correct any of it.</p>
+    <h3>3.3 Account and contact data</h3>
+    <p>Your email address (used to sign in by one-time code); your Instagram-scoped user id or WhatsApp number and display name (used to reply to you and to link your messages to your account); the time you first and last messaged us.</p>
+    <h3>3.4 Technical and usage data</h3>
+    <p>The platform message id, the channel (Instagram, WhatsApp, web, app), the time each item arrived, which processing steps ran and how long they took, and the corrections you made. We count events (an item kept, a reply sent, a model read) to run and cost the service; these counts contain no content.</p>
+    <h3>3.5 Data we deliberately do not store</h3>
+    <p>Email addresses and phone numbers found inside what you send are counted, not stored. Contact cards shared on WhatsApp are refused. Anything that looks like a password, PIN, one-time code, card security code or door code is kept as sent and is never read, transcribed or sent to any model.</p>
+    <h3>3.6 Backups from the mobile application</h3>
+    <p>If you turn on backup in the application, the items kept on your phone are copied to our servers under your account, and this policy applies to that copy.</p>
+  </section>
+
+  <section id="purposes">
+    <h2>4. Why we process it, and on what basis</h2>
+    <p>Under the DPDP Act we process personal data either with your consent or for a "legitimate use" listed in section 7 of the Act. The table shows each purpose and its basis.</p>
+    <div class="card">
+      <table>
+        <tr><th>Purpose</th><th>Data</th><th>Basis</th></tr>
+        <tr><td>Keeping what you send before you have an account, so it is there when you link</td><td>3.1, 3.3</td><td>Legitimate use, section 7(a): you voluntarily provided the data for this specified purpose. Held 30 days (section 7 of this policy).</td></tr>
+        <tr><td>Reading, filing and indexing what you send so you can find it again</td><td>3.1, 3.2</td><td>Your consent, given when you create an account and link a channel</td></tr>
+        <tr><td>Replying to your message on the channel you used, once a day at most</td><td>3.3</td><td>Legitimate use, section 7(a)</td></tr>
+        <tr><td>Signing you in, linking a channel to your account, unlinking it</td><td>3.3</td><td>Your consent</td></tr>
+        <tr><td>Sending a reminder you asked for (mobile application)</td><td>3.2</td><td>Your consent, per reminder</td></tr>
+        <tr><td>Running the service: limits, retries, cost counts, the record of what happened to each item</td><td>3.4</td><td>Your consent; and legitimate use, section 7(a)</td></tr>
+        <tr><td>Keeping the service secure and preventing abuse</td><td>3.3, 3.4</td><td>Legitimate use, section 7(a); and our legal obligations</td></tr>
+        <tr><td>Complying with law and lawful orders</td><td>as required</td><td>Legitimate use, sections 7(c) and 7(d)</td></tr>
+      </table>
+    </div>
+    <p>We do not process your personal data for advertising, profiling for advertising, or sale to anyone, and we do not use it to train any model of ours or of any provider.</p>
+  </section>
+
+  <section id="never">
+    <h2>5. What we never do</h2>
+    <ul>
+      <li>Read your Instagram or WhatsApp beyond the messages you send to the Tekensa account.</li>
+      <li>Read, transcribe or send to a model anything that looks like a credential (section 3.5).</li>
+      <li>Store the contact details of other people found inside what you send.</li>
+      <li>Sell, rent or share your personal data for anyone else's purposes.</li>
+      <li>Use your content to train any model.</li>
+      <li>Keep anything after you delete it, beyond the short windows in section 7.</li>
+    </ul>
+  </section>
+
+  <section id="processors">
+    <h2>6. Who processes it on our behalf</h2>
+    <p>We engage the following Data Processors under contracts that limit them to processing on our instructions (DPDP Act, section 8(2)). Each sees only what its role requires.</p>
+    <div class="card">
+      <table>
+        <tr><th>Processor</th><th>Role</th><th>What it processes</th><th>Location</th></tr>
+        <tr><td>Supabase, Inc.</td><td>Database, private file storage, authentication, server functions</td><td>All data in section 3, encrypted at rest and in transit</td><td><span class="fill">[project region, e.g. Mumbai (ap-south-1) or Singapore]</span></td></tr>
+        <tr><td>Meta Platforms (Instagram, WhatsApp Business Platform)</td><td>Delivers your messages to us and our replies to you</td><td>The messages you send the Tekensa account and our replies; your platform id</td><td>Meta's infrastructure, worldwide</td></tr>
+        <tr><td>Google (Gemini API)</td><td>Describes a photo, a scanned document or a video; classifies text</td><td>That one item, for that one request; not retained by Google for training under the API terms</td><td>Google's infrastructure, worldwide</td></tr>
+        <tr><td>Groq, Inc. (Whisper)</td><td>Transcribes a voice note, when enabled</td><td>That one recording, for that one request</td><td>United States</td></tr>
+        <tr><td><span class="fill">[static host, e.g. Vercel / Cloudflare]</span></td><td>Serves tekensa.com</td><td>Standard server logs (IP address, user agent, page)</td><td><span class="fill">[region]</span></td></tr>
+      </table>
+    </div>
+    <p>Google and Groq receive an item only at the moment it is read, and only the item. They do not receive your email address, your platform id, or your other items.</p>
+  </section>
+
+  <section id="retention">
+    <h2>7. How long we keep it</h2>
+    <dl>
+      <dt>Before you have an account</dt><dd>Everything you send is kept for 30 days from your last message. If you have not linked within 30 days, it is erased: the files first, then the records, then the identity. Each new message restarts the 30 days.</dd>
+      <dt>While you have an account</dt><dd>For as long as your account exists, or until you delete the item.</dd>
+      <dt>One item you delete</dt><dd>Hidden at once; you can undo for one day; then erased with its files and derived notes.</dd>
+      <dt>Your whole account</dt><dd>Erased on request (section 9.3): files first, then every record, then your sign-in. No copy is kept.</dd>
+      <dt>Unlinked channel</dt><dd>Items already in your account stay with your account. New messages from that channel are treated as those of a person without an account, with the 30-day rule above.</dd>
+      <dt>Operational records</dt><dd>Event counts with no content, and server logs, are kept for up to <span class="fill">[90 days]</span> and then deleted, unless the law requires longer.</dd>
+      <dt>Inactivity</dt><dd>If you do not use your account for <span class="fill">[24 months]</span> we will write to your email address and, absent a reply within 30 days, erase the account as above (DPDP Act, section 8(7)).</dd>
+    </dl>
+  </section>
+
+  <section id="security">
+    <h2>8. How we protect it</h2>
+    <ul>
+      <li>Every table is behind row-level security: your data can be read only by a session signed in as you, or by our own server functions.</li>
+      <li>Files are in a private store, never public; a signed, expiring link is required to read one.</li>
+      <li>Your Instagram id or WhatsApp number is looked up only through a keyed hash, so it does not appear in queries or logs.</li>
+      <li>Messages from Instagram and WhatsApp are accepted only when their signature verifies; our own internal calls carry secrets that are never in the code.</li>
+      <li>Linking requires a one-time six-digit code sent down the channel itself, entered in a signed-in session, with a limit of ten wrong attempts an hour.</li>
+      <li>Data is encrypted in transit and at rest by our hosting provider.</li>
+      <li>Every action on your data leaves a record you can see on the item.</li>
+    </ul>
+  </section>
+
+  <section id="rights">
+    <h2>9. Your rights</h2>
+    <h3>9.1 Access (section 11)</h3>
+    <p>You can see everything we hold about you at any time: every item, every derived note, the record of what was done to it, and the processors named in section 6. Sign in at tekensa.com/home; the counts on the You page are complete by construction.</p>
+    <h3>9.2 Correction and updating (section 12)</h3>
+    <p>You can correct any title, category, tag, summary or note on any item. A correction is final: no later processing overwrites it. To correct your email address, write to us.</p>
+    <h3>9.3 Erasure (section 12)</h3>
+    <p>You can delete one item from the item itself, or everything from the You page by typing DELETE EVERYTHING. Without a sign-in, follow <a href="/delete-account/">tekensa.com/delete-account</a> or write to <a href="mailto:privacy@tekensa.com">privacy@tekensa.com</a>. Erasure is carried out as in section 7 unless a law requires us to retain particular data, in which case we will tell you what and why.</p>
+    <h3>9.4 Grievance redressal (section 13)</h3>
+    <p>Write to the Grievance Officer in section 17. We will acknowledge within <span class="fill">[48 hours]</span> and respond within <span class="fill">[30 days]</span>. If you are not satisfied, you may complain to the Data Protection Board of India.</p>
+    <h3>9.5 Nomination (section 14)</h3>
+    <p>You may nominate a person to exercise these rights on your behalf if you die or become incapacitated, by writing to us.</p>
+    <h3>9.6 Taking a copy</h3>
+    <p>You can export your items from the application, and we will provide a copy of your server-held items in a common format on request.</p>
+  </section>
+
+  <section id="consent">
+    <h2>10. Consent, and withdrawing it</h2>
+    <p>You give consent by creating an account and by linking a channel, after this notice. You can withdraw it at any time, as easily as you gave it: unlink a channel from the You page, or delete your account. Withdrawal does not affect processing done before it. After withdrawal we stop processing and erase your data as in section 7, except where a law requires retention.</p>
+    <p>If you send a message before you have an account, that processing rests on the legitimate use in section 4, not on consent; you can end it by asking us to erase what you sent (section 9.3).</p>
+  </section>
+
+  <section id="children">
+    <h2>11. Children</h2>
+    <p>Tekensa is for people aged 18 and over. We do not knowingly process the personal data of a child, and we do not track children or direct advertising at them. If you believe a child has sent us something, write to us and we will erase it.</p>
+  </section>
+
+  <section id="transfers">
+    <h2>12. Where your data is stored and transferred</h2>
+    <p>Your data is stored with Supabase in <span class="fill">[region]</span>. Items are sent to Google and Groq at the moment they are read, and messages pass through Meta, each of which may process data outside India. We make such transfers as permitted by section 16 of the DPDP Act, and not to any country the Central Government has restricted by notification.</p>
+  </section>
+
+  <section id="breach">
+    <h2>13. If something goes wrong</h2>
+    <p>If a personal data breach affects you, we will inform you and the Data Protection Board of India in the form and time the DPDP Act and the Rules under it require, and we will tell you what happened, what data was involved, and what we are doing about it.</p>
+  </section>
+
+  <section id="meta">
+    <h2>14. Instagram and WhatsApp in particular</h2>
+    <p>When you message the Tekensa account, Meta sends us the message, its attachments, and your Instagram-scoped id or WhatsApp number. We use this only to keep what you sent, to reply to you, and to link your messages to your account when you enter the code. We do not access your profile, your followers, your other conversations, or anything you have not sent to the Tekensa account. Our use of data received from Meta complies with Meta's Platform Terms and Developer Policies. You can stop us from receiving your messages at any time by not messaging the account, and you can remove what we already hold by the means in section 9.3.</p>
+  </section>
+
+  <section id="cookies">
+    <h2>15. Cookies and local storage</h2>
+    <p>tekensa.com sets no advertising or analytics cookies. Signing in stores a session token in your browser's local storage so you stay signed in; signing out removes it. The mobile application stores your items on your phone in its own storage.</p>
+  </section>
+
+  <section id="changes">
+    <h2>16. Changes to this policy</h2>
+    <p>If we change this policy in a way that affects you, we will tell you by email or in the service before the change takes effect, and where the change needs your consent we will ask for it. Earlier versions are available on request.</p>
+  </section>
+
+  <section id="contact">
+    <h2>17. Grievances and contact</h2>
+    <p>Grievance Officer: <span class="fill">[name]</span>, <span class="fill">[postal address, India]</span>, <a href="mailto:privacy@tekensa.com">privacy@tekensa.com</a>. General questions: <a href="mailto:hello@tekensa.com">hello@tekensa.com</a>.</p>
+    <p>This policy is governed by the laws of India. Nothing in it limits any right you have under the DPDP Act or any other law.</p>
+  </section>
+
+  <footer>
+    <a href="/">tekensa.com</a> · <a href="/delete-account/">delete account</a> · <a href="/login/">sign in</a> · version 1.0, <span class="fill">[date]</span>
+  </footer>
+</div>
+</body>
+</html>

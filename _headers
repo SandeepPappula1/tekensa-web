@@ -1,0 +1,13 @@
+# Netlify / Cloudflare Pages headers. Vercel reads vercel.json instead. The CSP is also a <meta> in each page,
+# so a host that ignores this file still has it; headers win where both exist. Security audit, 2026-09-25.
+/*
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Cross-Origin-Opener-Policy: same-origin
+/home/*
+  Cache-Control: no-store
+/login/*
+  Cache-Control: no-store

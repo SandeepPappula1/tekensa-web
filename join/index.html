@@ -3,37 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="no-referrer">
 <title>Join on Tekensa</title>
 <meta name="robots" content="noindex">
 <link rel="canonical" href="https://tekensa.com/join/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --ink: #0E1013;
-    --paper: #F6F6F4;
-    --card: #ECEBE7;
-    --muted: #63666B;
-    --line: #DEDDD8;
-    --font-sans: "General Sans", system-ui, sans-serif;
+    --ink: #F1EFEA; --paper: #0F0F12; --card: #17171C; --surface: #17171C; --muted: #9A9AA2; --line: rgba(241,239,234,0.12);
+    --accent: #7C7CFF; --on-accent: #FFFFFF;
+    --font-sans: "Inter", system-ui, sans-serif; --font-voice: "Unbounded", system-ui, sans-serif;
   }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --ink: #F2F3F1;
-      --paper: #0E1013;
-      --card: #17191C;
-      --muted: #A0A2A5;
-      --line: #24262A;
-    }
-  }
-  :root[data-theme="dark"] {
-    --ink: #F2F3F1;
-    --paper: #0E1013;
-    --card: #17191C;
-    --muted: #A0A2A5;
-    --line: #24262A;
-  }
+  html { color-scheme: dark; }
+  h1, h2, .wordmark { font-family: var(--font-voice); font-weight: 700; }
+  .wordmark { font-weight: 900; }
+  a { color: var(--accent); }
   * { box-sizing: border-box; }
   body {
     margin: 0;
@@ -51,7 +38,7 @@
     max-width: 400px;
     background: var(--card);
     border: 1px solid var(--line);
-    border-radius: 4px;
+    border-radius: 18px;
     padding: 36px 30px 30px;
     text-align: center;
   }
@@ -76,13 +63,13 @@
   }
   a.cta {
     display: block;
-    background: var(--ink);
-    color: var(--paper);
+    background: var(--accent);
+    color: var(--on-accent);
     text-decoration: none;
     font-weight: 500;
     font-size: 14.5px;
     padding: 13px 20px;
-    border-radius: 3px;
+    border-radius: 999px;
   }
   p.fallback {
     margin: 16px 0 0;
@@ -102,22 +89,6 @@
   <p class="fallback">Already have it installed? Open this link again on your phone and it will
     launch Tekensa directly.</p>
 </main>
-<script>
-  // The token stays in the URL only for this fallback page — never rendered as text,
-  // never sent to a third party, never logged to anything but same-origin storage.
-  var params = new URLSearchParams(window.location.search);
-  var token = params.get('t');
-
-  // TODO before go-live: point this at the real Play Store / App Store listing once published.
-  var STORE_URL = 'https://tekensa.com/';
-  var cta = document.getElementById('ctaLink');
-  cta.href = STORE_URL;
-
-  if (!token) {
-    document.getElementById('headline').textContent = "This invite link isn't valid";
-    document.getElementById('subline').textContent = 'Ask whoever sent it to share it again.';
-    cta.style.display = 'none';
-  }
-</script>
+<script src="app.js"></script>
 </body>
 </html>
