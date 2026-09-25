@@ -48,6 +48,14 @@
   } else if (linking) {
     $('#lk-lead').textContent = 'Now the six-digit code from the Tekensa reply in your Instagram or WhatsApp.';
   }
+  // A LINK THAT DID NOT WORK says so. Supabase sends a spent or expired link back here with
+  // #error_description=… in the address; silently showing the sign-in form again reads as "it asked for
+  // my email again" (founder, 25 Sep 2026). The words are shown once and the address is cleaned.
+  const hashErr = new URLSearchParams(location.hash.replace(/^#/, '')).get('error_description');
+  if (hashErr) {
+    $('#si-err').textContent = 'That sign-in link did not work (' + hashErr.replace(/\+/g, ' ') + '). A link works once and for an hour. Enter your email below for a new one.';
+    history.replaceState(null, '', location.pathname + location.search);
+  }
   const stepNow = (n) => { for (const i of [1, 2, 3]) $('#st-' + i).classList.toggle('now', i === n); };
   let autoTried = false;
 
