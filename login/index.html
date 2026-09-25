@@ -48,7 +48,7 @@
   </div>
   <ol id="steps" class="steps" hidden>
     <li id="st-1" class="now">Say which email is your Tekensa account</li>
-    <li id="st-2">Type the sign-in code we email you (a different code, for your email)</li>
+    <li id="st-2">Tap the link in the email we send (or type its code, if it shows one)</li>
     <li id="st-3">Your Instagram is linked and everything you sent is in</li>
   </ol>
 
@@ -64,9 +64,9 @@
     </div>
     <div id="signin-code-row" hidden>
       <p id="si-sent">Code sent to <b id="si-where"></b>.</p>
-      <input id="si-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" aria-label="The sign-in code from your email" />
+      <input id="si-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="code from the email, if any" aria-label="The sign-in code from your email" />
       <button id="si-verify" class="btn y" type="button">sign in</button>
-      <p class="link-note">Not the Instagram code. This one is in your email, from Tekensa, and lasts ten minutes.</p>
+      <p class="link-note">Not the Instagram code. The email is from Tekensa (sent by Supabase Auth) and its link lasts an hour.</p>
     </div>
     <div id="si-err" class="link-err" role="alert" aria-live="polite"></div>
   </section>

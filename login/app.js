@@ -42,8 +42,8 @@
     $('#have-code').hidden = false;
     $('#steps').hidden = false;
     $('#si-lead').innerHTML = '<b>One more step: which email is your Tekensa account?</b>';
-    $('#si-body').textContent = 'We will email a sign-in code to it. New to Tekensa? The same step creates your account.';
-    $('#si-send').textContent = 'email me a sign-in code';
+    $('#si-body').textContent = 'We will email it a sign-in link. New to Tekensa? The same step creates your account.';
+    $('#si-send').textContent = 'email me a sign-in link';
     $('#si-verify').textContent = 'sign in and link';
   } else if (linking) {
     $('#lk-lead').textContent = 'Now the six-digit code from the Tekensa reply in your Instagram or WhatsApp.';
@@ -66,19 +66,27 @@
     $('#si-err').textContent = '';
     email = $('#si-email').value.trim();
     if (!email) return;
-    const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+    // THE LINK COMES BACK HERE. The email Supabase sends carries a link (a code too, once the project has its
+    // own mail template); the link must land on THIS page with the Instagram code still in the address, so the
+    // session it creates is used at once to link. Without this, the link fell on the project's default site
+    // URL (localhost, 25 Sep 2026) and the person saw "refused to connect".
+    const back = location.origin + '/login/' + (fromUrl.length === 6 ? '?c=' + fromUrl : '');
+    const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: back } });
     if (error) { $('#si-err').textContent = error.message; return; }
     $('#si-where').textContent = email;
-    if (fromUrl.length === 6) $('#si-sent').innerHTML = 'We emailed a sign-in code to <b>' + email.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])) + '</b>. Type it here.';
+    const safe = email.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    $('#si-sent').innerHTML = 'We emailed <b>' + safe + '</b>. <b>Tap the link in that email</b>: it brings you back here, signed in' + (fromUrl.length === 6 ? ', and links your Instagram' : '') + '. If the email shows a six-digit code instead, type it below.';
     $('#signin-email-row').hidden = true;
     $('#signin-code-row').hidden = false;
-    $('#si-code').focus();
     stepNow(2);
   });
 
   $('#si-verify').addEventListener('click', async () => {
     $('#si-err').textContent = '';
     const token = $('#si-code').value.trim();
+    // the Instagram code typed where the email code goes: say which is which instead of "invalid"
+    if (fromUrl.length === 6 && token === fromUrl) { $('#si-err').textContent = 'That is your Instagram code, and it is already in hand. Open the email we sent and tap its link, or type the code from the email if it shows one.'; return; }
+    if (!/^\d{6,8}$/.test(token)) { $('#si-err').textContent = 'The sign-in code is the six digits in the email. No code in the email? Tap its link instead.'; return; }
     const { error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
     if (error) { $('#si-err').textContent = error.message; return; }
     await refreshStep();
