@@ -35,6 +35,20 @@
   // what was sent; arriving plainly it is a sign-in, and a signed-in person goes straight to /home.
   const linking = new URLSearchParams(location.search).has('c');
   if (linking) $('#lk-title').textContent = 'link what you have sent';
+  // Arriving from the DM: the Instagram code is shown as already in hand, the three steps are listed, and the
+  // sign-in copy says plainly that the email code is a second, different code. Nothing here asks for the DM code.
+  if (fromUrl.length === 6) {
+    $('#have-code-value').textContent = fromUrl;
+    $('#have-code').hidden = false;
+    $('#steps').hidden = false;
+    $('#si-lead').innerHTML = '<b>One more step: which email is your Tekensa account?</b>';
+    $('#si-body').textContent = 'We will email a sign-in code to it. New to Tekensa? The same step creates your account.';
+    $('#si-send').textContent = 'email me a sign-in code';
+    $('#si-verify').textContent = 'sign in and link';
+  } else if (linking) {
+    $('#lk-lead').textContent = 'Now the six-digit code from the Tekensa reply in your Instagram or WhatsApp.';
+  }
+  const stepNow = (n) => { for (const i of [1, 2, 3]) $('#st-' + i).classList.toggle('now', i === n); };
   let autoTried = false;
 
   async function refreshStep() {
@@ -55,9 +69,11 @@
     const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
     if (error) { $('#si-err').textContent = error.message; return; }
     $('#si-where').textContent = email;
+    if (fromUrl.length === 6) $('#si-sent').innerHTML = 'We emailed a sign-in code to <b>' + email.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])) + '</b>. Type it here.';
     $('#signin-email-row').hidden = true;
     $('#signin-code-row').hidden = false;
     $('#si-code').focus();
+    stepNow(2);
   });
 
   $('#si-verify').addEventListener('click', async () => {
@@ -106,6 +122,7 @@
         : `${moved} things you sent are now in your Tekensa.`);
     }
     show('step-done');
+    stepNow(3);
     // THE RECEIPT. The inbox that was just linked is told so, in its own thread, naming this email
     // (masked) and where to undo it: the one message that always reaches the inbox's real owner.
     // Fire and forget: the link already happened; a failed receipt is recorded server-side, never shown.

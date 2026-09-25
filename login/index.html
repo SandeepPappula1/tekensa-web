@@ -21,6 +21,15 @@
   .link-note { opacity: .75; font-size: .9rem; margin-top: .75rem; }
   .link-err { color: #FF8A80; margin-top: .75rem; min-height: 1.2em; }
   .link-ok { margin-top: .75rem; }
+  /* the code that came with the person from the DM: shown once, up top, so the page never seems to ask for it again */
+  .have-code { display: flex; align-items: center; gap: .9rem; padding: .9rem 1rem; border-radius: 14px; background: var(--surf); box-shadow: inset 0 0 0 1px var(--line); margin-top: 1.25rem; }
+  .have-code .tick { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-weight: 700; flex: none; }
+  .have-code b { font-family: "Unbounded", system-ui, sans-serif; letter-spacing: .12em; }
+  .have-code small { display: block; opacity: .75; margin-top: .15rem; }
+  .steps { display: grid; gap: .35rem; margin: 1.25rem 0 0; padding: 0; list-style: none; counter-reset: s; }
+  .steps li { display: flex; gap: .7rem; align-items: baseline; opacity: .8; }
+  .steps li::before { counter-increment: s; content: counter(s); font-family: "Unbounded", system-ui, sans-serif; font-size: .8rem; color: var(--accent); flex: none; }
+  .steps li.now { opacity: 1; font-weight: 600; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -29,20 +38,35 @@
   <p style="margin:0 0 28px"><a href="/" style="font-family:'Unbounded',system-ui,sans-serif;font-weight:900;font-size:20px;color:var(--ink);text-decoration:none">tekensa</a></p>
   <h1 id="lk-title">sign in</h1>
 
+  <!-- TWO CODES, SAID APART (founder, 25 Sep 2026: "you already gave the code and here you are
+       asking something else"). The DM code proves the Instagram; it rides in the link and is shown
+       here as already in hand. The email code proves the person; it is the only thing this page
+       asks them to type. The page names both and never calls either one just "a code". -->
+  <div id="have-code" class="have-code" hidden>
+    <span class="tick" aria-hidden="true">✓</span>
+    <div><span>Your Instagram code <b id="have-code-value"></b> came with you.</span><small>Nothing to type for it. It proves the Instagram is yours.</small></div>
+  </div>
+  <ol id="steps" class="steps" hidden>
+    <li id="st-1" class="now">Say which email is your Tekensa account</li>
+    <li id="st-2">Type the sign-in code we email you (a different code, for your email)</li>
+    <li id="st-3">Your Instagram is linked and everything you sent is in</li>
+  </ol>
+
   <!-- STEP 1 — who you are. The same email-code sign-in index.html uses,
        copied rather than imported: index.html is another seat's file and a
        shared module between two pages is a coupling neither of us asked for. -->
   <section id="step-signin" class="link-step">
-    <p><b>Your Tekensa collection is waiting for you.</b></p>
-    <p>Create your account, or sign in, to see what you have sent. We will email you a code.</p>
+    <p id="si-lead"><b>Your Tekensa collection is waiting for you.</b></p>
+    <p id="si-body">Create your account, or sign in, to see what you have sent. We will email you a code.</p>
     <div id="signin-email-row">
       <input id="si-email" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" />
       <button id="si-send" class="btn y" type="button">send me a code</button>
     </div>
     <div id="signin-code-row" hidden>
-      <p>Code sent to <b id="si-where"></b>.</p>
-      <input id="si-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" />
+      <p id="si-sent">Code sent to <b id="si-where"></b>.</p>
+      <input id="si-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" aria-label="The sign-in code from your email" />
       <button id="si-verify" class="btn y" type="button">sign in</button>
+      <p class="link-note">Not the Instagram code. This one is in your email, from Tekensa, and lasts ten minutes.</p>
     </div>
     <div id="si-err" class="link-err" role="alert" aria-live="polite"></div>
   </section>
@@ -51,7 +75,7 @@
        that proves control of the number: the code was never shown to whoever
        is typing here, it was sent to the WhatsApp that did the sending. -->
   <section id="step-code" class="link-step" hidden>
-    <p>Now the code we sent you on WhatsApp or Instagram.</p>
+    <p id="lk-lead">Now the code we sent you on WhatsApp or Instagram.</p>
     <input id="lk-code" class="link-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" aria-label="Your six digit code" />
     <button id="lk-submit" class="btn y" type="button">link my things</button>
     <div id="lk-err" class="link-err" role="alert" aria-live="polite"></div>

@@ -260,12 +260,15 @@ async function openItem(id) {
   const prov = `<div class="prov"><span>${srcHtml(i)}</span><span>${esc(i.type)}</span><span>saved <b>${i.date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</b> · ${ago(i.date)}</span>${i.conf != null && !i.correctedFields.length ? `<span>confidence <b>${Math.round(i.conf * 100)}%</b></span>` : ''}</div>`;
 
   // ---- evidence: the original, verbatim, and the text read from inside it ----
+  const perma = safeUrl(i.facets?.ig?.permalink ?? null);
   const orig = i.url ? `<div class="orig"><div class="o"><b>Original link</b><small>${esc(i.url)}</small></div>${safeUrl(i.url) ? `<a class="btn y" href="${esc(safeUrl(i.url))}" target="_blank" rel="noopener">Open ↗</a>` : ''}</div>`
     : media && i.type === 'photo' ? `<div class="orig"><div class="o"><b>Original photo</b><small>kept exactly as sent</small></div><a class="btn y" href="${esc(media)}" target="_blank" rel="noopener">Open</a></div>`
     : media && i.type === 'voice' ? `<div class="orig"><div class="o"><b>Original recording</b><audio controls src="${esc(media)}"></audio></div></div>`
     : media && i.type === 'video' ? `<div class="orig"><div class="o"><b>Original video</b><video controls src="${esc(media)}" preload="metadata"></video></div></div>`
     : media && i.type === 'pdf' ? `<div class="orig"><div class="o"><b>Original document</b><small>kept exactly as sent</small></div><a class="btn y" href="${esc(media)}" target="_blank" rel="noopener">Open</a></div><iframe class="pdfview" src="${esc(media)}#view=FitH" title="${esc(i.title)}" loading="lazy"></iframe>`
     : media ? `<div class="orig"><div class="o"><b>Original file</b><small>kept exactly as sent</small></div><a class="btn y" href="${esc(media)}" target="_blank" rel="noopener">Open</a></div>`
+    // a shared reel or post whose file Meta did not hand over: the words are here, the thing itself plays on Instagram
+    : perma ? `<div class="orig"><div class="o"><b>${i.form === 'post' ? 'Post' : 'Reel'} on Instagram</b><small>the ${i.form === 'post' ? 'post' : 'video'} stays on Instagram; its words are kept here</small></div><a class="btn y" href="${esc(perma)}" target="_blank" rel="noopener">Open ↗</a></div>`
     : i.text ? `<div class="orig words"><div class="o"><b>Your words</b><small>${esc(i.text)}</small></div></div>`
     : i.status === 'received' ? `<div class="orig"><div class="o"><b>Arriving</b><small>the original is being kept</small></div></div>`
     : `<div class="orig"><div class="o"><b>Original not available</b><small>${esc(i.facets?.wa?.fetch_error ?? 'the file could not be fetched from the channel; the reference is kept')}</small></div></div>`;
