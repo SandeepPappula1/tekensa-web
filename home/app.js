@@ -133,6 +133,13 @@ function cardHtml(i, opts = {}) {
   return `<button class="card ${opts.grid ? '' : 's-' + shape} ${TITLED.has(i.type) ? 'titled' : ''} ${i.status === 'failed' ? 'failed' : ''}" draggable="true" data-id="${i.id}" aria-label="${esc(i.title)}">${posterHtml(i)}${flag}<div class="meta"><span class="t">${esc(i.title)}</span>${factLine}<span class="s">${srcHtml(i)} · ${ago(i.date)}${i.dup ? ' · sent again' : ''}</span></div></button>`;
 }
 function rail(title, items, why, link) { if (!items.length) return ''; return `<section class="rail"><div class="rail-h"><h2>${esc(title)}</h2>${why ? `<span class="why">${esc(why)}</span>` : ''}${link ? `<a href="${link}">see all ›</a>` : ''}</div><div class="track">${items.slice(0, 14).map((i) => cardHtml(i)).join('')}</div></section>`; }
+// 5.2: a thing is a product when the reader named a product or a brand in it, or the link itself is a product page
+const isProduct = (i) => i.form === 'product' || i.type === 'product' || i.entities.some((e) => e.kind === 'product' || e.kind === 'brand');
+const namesEntity = (i, name) => i.entities.some((e) => String(e.name ?? '').toLowerCase() === name);
+/* ---------- 3.7: one quiet line about the app under results; dismissed once, never shown again ---------- */
+const INSTALL_KEY = 'tekensa.install.dismissed';
+function installDismissed() { try { return localStorage.getItem(INSTALL_KEY) === '1'; } catch { return false; } }
+function installLine() { return installDismissed() ? '' : `<p class="install-line"><span>Tekensa on your phone: reminders, camera, share sheet.</span><a href="/join/">get the app</a><button type="button" data-install-x aria-label="Not now">✕</button></p>`; }
 function gridHtml(items) { return `<div class="grid">${items.map((i) => cardHtml(i, { grid: true })).join('')}</div>`; }
 function spaceName(id) { return SPACES.find((s) => s.id === id)?.name ?? ''; }
 
@@ -155,6 +162,7 @@ function renderHome() {
     ...Object.keys(LIST_LABEL).map((l) => rail(LIST_LABEL[l], live.filter((i) => i.shelves.includes('list:' + l)), LIST_WHY[l], `#/shelf/list:${l}`)),
     rail('Reels', live.filter((i) => i.shelves.includes('form:reel')), 'every reel you sent', '#/shelf/form:reel'),
     rail('Posts', live.filter((i) => i.shelves.includes('form:post')), 'shared posts', '#/shelf/form:post'),
+    rail('Products', live.filter(isProduct), 'things that name a product or a brand', '#/products'),
     rail('Needs another look', live.filter((i) => !i.complete && ['ready', 'limited', 'failed'].includes(i.status)), 'kept, but something is still missing — Tekensa will try again', '#/shelf/incomplete'),
     ...topHashtags(live, 3).map((h) => rail('#' + h, live.filter((i) => i.hashtags.includes(h)), 'a tag you sent', `#/shelf/tag:${encodeURIComponent(h)}`)),
     rail('From WhatsApp', live.filter((i) => i.src === 'whatsapp'), 'forwarded to Tekensa', '#/src/whatsapp'),
@@ -192,6 +200,14 @@ function renderList(kind, key) {
   }
   if (kind === 'c') { items = ITEMS.filter((i) => i.cat === key); title = CATS[key] ?? key; sub = 'A collection Tekensa keeps for you. Nothing here was filed by hand.'; }
   if (kind === 'src') { items = ITEMS.filter((i) => i.src === key); title = 'From ' + (SRCLABEL[key] ?? key); sub = ''; }
+  if (kind === 'products') { items = ITEMS.filter(isProduct); title = 'Products'; sub = 'Everything that names a product or a brand, as the reader found them.'; }
+  if (kind === 'entity') {
+    // 5.2: a shelf for one named product or brand; the name comes from the address and is only ever compared, never rendered raw
+    let name; try { name = decodeURIComponent(key ?? '').trim().toLowerCase(); } catch { location.hash = '#/home'; return; }
+    if (!name) { location.hash = '#/home'; return; }
+    items = ITEMS.filter((i) => namesEntity(i, name)); const shown = items.flatMap((i) => i.entities).find((e) => String(e.name ?? '').toLowerCase() === name);
+    title = shown ? shown.name : name; sub = 'Everything you sent that names it.';
+  }
   $('#list-title').textContent = title; $('#list-sub').textContent = `${sub} ${items.length} thing${items.length === 1 ? '' : 's'}.`;
   $('#list-body').innerHTML = items.length ? gridHtml(items) : '<p class="empty-rail">Nothing here yet.</p>';
 }
@@ -327,8 +343,8 @@ async function openItem(id) {
   const connectedHtml = connected.length ? `<div class="sec"><h4><span class="truth ob">Connected</span> by what they share</h4><div class="track">${connected.map(({ o, why }) => cardHtml(o).replace('<div class="meta">', `<div class="meta"><span class="why">${esc(why)}</span>`)).join('')}</div></div>` : '';
   const organisation = `<div class="sec"><h4><span class="truth ${i.correctedFields.includes('category') ? 'you' : 'ai'}">${i.correctedFields.includes('category') ? 'You decided' : 'Tekensa filed'}</span> ${i.correctedFields.includes('category') ? 'this stays where you put it' : 'tap to move it'}</h4>
       <div class="corr">${Object.keys(CATS).map((c) => `<button class="${i.cat === c ? 'on' : ''}" data-setcat="${c}">${CATS[c]}</button>`).join('')}</div>
-      <div class="tags" style="margin-top:10px">${i.hashtags.map((h) => `<a class="tag" href="#/shelf/tag:${encodeURIComponent(h)}" title="a hashtag you sent">#${esc(h)}</a>`).join('')}${i.tags.filter((t) => !i.hashtags.includes(t)).map((t) => `<span class="tag">${esc(t)}<span class="x" data-rmtag="${esc(t)}" title="remove">✕</span></span>`).join('')}${i.ents.map((e) => `<span class="tag ent" title="${esc(e[1])}">${esc(e[0])}</span>`).join('')}<span class="addtag"><input id="addtag-in" placeholder="add a word"><button class="tag" id="addtag-go">add</button></span></div></div>
-    <div class="sec"><h4><span class="truth you">Yours</span> Spaces</h4><div class="spacerow">${SPACES.map((s) => `<button class="${i.spaces.includes(s.id) ? 'in' : ''}" data-tog="${s.id}">${i.spaces.includes(s.id) ? '✓ ' : '+ '}${esc(s.name)}</button>`).join('')}<button data-newspace>+ New Space</button></div></div>${connectedHtml}`;
+      <div class="tags" style="margin-top:10px">${i.hashtags.map((h) => `<a class="tag" href="#/shelf/tag:${encodeURIComponent(h)}" title="a hashtag you sent">#${esc(h)}</a>`).join('')}${i.tags.filter((t) => !i.hashtags.includes(t)).map((t) => `<span class="tag">${esc(t)}<span class="x" data-rmtag="${esc(t)}" title="remove">✕</span></span>`).join('')}${i.ents.map((e) => (e[1] === 'product' || e[1] === 'brand') ? `<a class="tag ent" href="#/entity/${encodeURIComponent(e[0])}" title="${esc(e[1])} · everything that names it" data-ent>${esc(e[0])} ›</a>` : `<span class="tag ent" title="${esc(e[1])}">${esc(e[0])}</span>`).join('')}<span class="addtag"><input id="addtag-in" placeholder="add a word"><button class="tag" id="addtag-go">add</button></span></div></div>
+    <div class="sec"><h4><span class="truth you">Yours</span> Spaces</h4><div class="spacerow">${SPACES.map((s) => `<button class="${i.spaces.includes(s.id) ? 'in' : ''}" data-tog="${s.id}">${i.spaces.includes(s.id) ? '✓ ' : '+ '}${esc(s.name)}</button>`).join('')}<button data-newspace>+ New Space</button></div></div>${connectedHtml}<div class="sec" id="related" hidden></div>`;
 
   const hero = i.type === 'photo' && media ? `<div class="hero"><img class="thumb" src="${esc(media)}" alt=""><button class="x" id="sheetx" aria-label="Close">✕</button></div>` : `<div class="hero ${SHAPE[i.type] ?? 'sq'}" style="--hero-bg:${art(i)}">${posterHtml({ ...i, status: null }, true)}<button class="x" id="sheetx" aria-label="Close">✕</button></div>`;
   $('#sheet').innerHTML = `${hero}<div class="body">
@@ -343,6 +359,18 @@ async function openItem(id) {
       <div class="row" style="margin-top:10px;display:flex;gap:8px;align-items:center"><button class="btn" data-del="${i.id}">delete</button><span id="del-confirm" hidden><span class="fine">Delete this one thing? </span><button class="btn y" data-del-go="${i.id}">delete it</button> <button class="btn" data-del-no>keep</button></span></div></div>
   </div>`;
   $('#sheet').classList.add('on'); $('#scrim').classList.add('on'); $('#sheet').scrollTop = 0;
+  loadRelated(id);
+}
+// 8.4: what the index holds next to this one, asked of the server after the sheet is up; nothing shown when it has nothing or fails
+async function loadRelated(id) {
+  let rows;
+  try { const { data, error } = await sb.rpc('related_captures', { p_id: id, p_limit: 5 }); if (error) return; rows = Array.isArray(data) ? data : []; } catch { return; }
+  const el = $('#related'); if (!el || openId !== id) return;
+  const byId = new Map(ITEMS.map((i) => [i.id, i]));
+  const found = rows.map((r) => ({ r, i: byId.get(String(r.id)) })).filter((x) => x.i && x.i.id !== id).slice(0, 5);
+  if (!found.length) return;
+  el.innerHTML = `<h4><span class="truth ob">Related</span> by what the index knows</h4><div class="track">${found.map(({ r, i }) => cardHtml(i).replace('<div class="meta">', `<div class="meta"><span class="why">${esc(CATS[r.category] ?? r.category ?? '')}</span>`)).join('')}</div>`;
+  el.hidden = false;
 }
 async function renderChannels() {
   const el = $('#you-channels'); if (!el) return;
@@ -387,7 +415,19 @@ async function correct(item, field, value) {
 const TRIES = ['What did I save about Japan?', 'Show me the places I saved', 'What did I add last week?', 'Things not in any Space', 'Documents', 'What did I save from Instagram?'];
 // ONE SEARCH BOX, FILTERS BESIDE IT (plan 3.5). Typing lists everything relevant as you type; the chips
 // narrow by source, form, category and when. The Ask answer line stays: it counts what the search found.
-const ASK = { src: null, form: null, cat: null, when: null };
+// `said` is the date phrase read out of the typed words (when.js, 6.1): shown as a chip beside the tapped ones, removable like them.
+const ASK = { src: null, form: null, cat: null, when: null, said: null };
+const WHEN = window.DUMP_WHEN;
+// the tapped "when" chip as a day range, so words and chips narrow through one comparison
+function chipRange() {
+  const t = new Date();
+  if (ASK.when === 'week') return { from: WHEN.isoDay(WHEN.addDays(t, -7)), to: WHEN.isoDay(t), label: 'the last 7 days' };
+  if (ASK.when === 'month') return WHEN.parse('this month', t);
+  if (ASK.when === 'year') return WHEN.parse('this year', t);
+  if (ASK.when === 'lastyear') return WHEN.parse('last year', t);
+  return null;
+}
+function stripSaid() { if (!ASK.said) return; $('#askin').value = WHEN.without($('#askin').value, ASK.said); ASK.said = null; }
 const CHIP_ROWS = [
   ['source', 'src', [['instagram', 'Instagram'], ['whatsapp', 'WhatsApp'], ['web', 'Web']]],
   ['form', 'form', [['reel', 'reels'], ['post', 'posts'], ['photo', 'photos'], ['video', 'videos'], ['voice', 'voice'], ['document', 'documents'], ['article', 'articles'], ['note', 'notes'], ['place', 'places'], ['product', 'products']]],
@@ -396,46 +436,36 @@ const CHIP_ROWS = [
 ];
 function renderChips() {
   const any = Object.values(ASK).some(Boolean);
-  $('#askchips').innerHTML = CHIP_ROWS.map(([label, key, opts]) => `<span class="lbl">${label}</span>` + opts.map(([v, t]) => `<button type="button" class="chip${ASK[key] === v ? ' on' : ''}" data-chip="${key}" data-val="${esc(v)}">${esc(t)}</button>`).join('') + '<span class="sep"></span>').join('') + (any ? '<button type="button" class="chip" data-chip="clear">clear filters ✕</button>' : '');
+  $('#askchips').innerHTML = CHIP_ROWS.map(([label, key, opts]) => `<span class="lbl">${label}</span>` + opts.map(([v, t]) => `<button type="button" class="chip${ASK[key] === v ? ' on' : ''}" data-chip="${key}" data-val="${esc(v)}">${esc(t)}</button>`).join('') + (key === 'when' && ASK.said ? `<button type="button" class="chip on said" data-chip="said" title="from your words">${esc(ASK.said.label)} ✕</button>` : '') + '<span class="sep"></span>').join('') + (any ? '<button type="button" class="chip" data-chip="clear">clear filters ✕</button>' : '');
 }
 let askTimer = null;
 function openAsk(q) { $('#ask').classList.add('on'); $('#askin').value = q || ''; renderChips(); renderAsk(q || ''); setTimeout(() => $('#askin').focus(), 50); }
 function closeAsk() { $('#ask').classList.remove('on'); }
 function parseAsk(q) {
-  const s = q.toLowerCase(); const facets = []; let cands = ITEMS.slice();
+  // 6.1: the date words come out first, so "hotels last year" searches for hotels and narrows by the year
+  const said = WHEN.parse(q); const s = WHEN.without(q, said).toLowerCase(); const facets = []; let cands = ITEMS.slice();
   const space = SPACES.find((sp) => s.includes(sp.name.toLowerCase())); if (space) { cands = cands.filter((i) => i.spaces.includes(space.id)); facets.push('in your Space ' + space.name); }
   const srcKey = Object.keys(SRCLABEL).find((k) => s.includes(k)); if (srcKey) { cands = cands.filter((i) => i.src === srcKey); facets.push('from ' + SRCLABEL[srcKey]); }
   const typeMap = { restaurant: ['place'], restaurants: ['place'], place: ['place'], places: ['place'], video: ['reel', 'video', 'tiktok'], videos: ['reel', 'video', 'tiktok'], reel: ['reel'], reels: ['reel'], document: ['doc', 'pdf'], documents: ['doc', 'pdf'], pdf: ['pdf'], pdfs: ['pdf'], photo: ['photo'], photos: ['photo'], voice: ['voice'], note: ['note'], notes: ['note'], article: ['article'], articles: ['article'], link: ['article', 'video', 'reel', 'post'], links: ['article', 'video', 'reel', 'post'] };
   const words = s.replace(/[?.,!"]/g, ' ').split(/\s+/).filter(Boolean);
   const tk = words.find((w) => typeMap[w]); if (tk) { cands = cands.filter((i) => typeMap[tk].includes(i.type)); facets.push(tk); }
   const catKey = Object.keys(CATS).find((c) => c !== 'unsorted' && s.includes(CATS[c].toLowerCase())); if (catKey && !tk) { cands = cands.filter((i) => i.cat === catKey); facets.push('in ' + CATS[catKey]); }
-  const nowD = new Date(); const y0 = nowD.getFullYear(), m0 = nowD.getMonth();
-  const inYear = (i, y) => i.date.getFullYear() === y, inMonth = (i, y, m) => i.date.getFullYear() === y && i.date.getMonth() === m;
-  const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
-  const monthWord = words.find((w) => MONTHS.includes(w) || (w.length === 3 && MONTHS.some((m) => m.startsWith(w) && w !== 'may')));
-  const yearWord = words.find((w) => /^(19|20)\d\d$/.test(w));
-  if (/last week|this week|past week/.test(s)) { cands = cands.filter((i) => (Date.now() - i.date) / 864e5 <= 7); facets.push('from the last 7 days'); }
-  else if (/last month|past month/.test(s)) { cands = cands.filter((i) => inMonth(i, m0 === 0 ? y0 - 1 : y0, (m0 + 11) % 12)); facets.push('from last month'); }
-  else if (/this month/.test(s)) { cands = cands.filter((i) => inMonth(i, y0, m0)); facets.push('from this month'); }
-  else if (/last year/.test(s)) { cands = cands.filter((i) => inYear(i, y0 - 1)); facets.push('from ' + (y0 - 1)); }
-  else if (/this year/.test(s)) { cands = cands.filter((i) => inYear(i, y0)); facets.push('from ' + y0); }
-  else if (monthWord) { const mi = MONTHS.findIndex((m) => m.startsWith(monthWord)); const yy = yearWord ? Number(yearWord) : (mi > m0 ? y0 - 1 : y0); cands = cands.filter((i) => inMonth(i, yy, mi)); facets.push('from ' + MONTHS[mi] + ' ' + yy); }
-  else if (yearWord) { cands = cands.filter((i) => inYear(i, Number(yearWord))); facets.push('from ' + yearWord); }
+  // the words' date range and the tapped chip's, each a day range on captured_at; both narrow when both are there
+  if (said) { cands = cands.filter((i) => WHEN.inRange(dayKey(i.date), said)); facets.push('from ' + said.label); }
   // THE CHIPS. What a person tapped narrows everything the words found; the words never override a chip.
   if (ASK.src) { cands = cands.filter((i) => i.src === ASK.src); facets.push('from ' + (SRCLABEL[ASK.src] ?? ASK.src)); }
-  if (ASK.form) { cands = cands.filter((i) => (i.form ?? i.type) === ASK.form || i.type === ASK.form); facets.push(ASK.form + 's'); }
+  if (ASK.form === 'product') { cands = cands.filter(isProduct); facets.push('naming a product or a brand'); }
+  else if (ASK.form) { cands = cands.filter((i) => (i.form ?? i.type) === ASK.form || i.type === ASK.form); facets.push(ASK.form + 's'); }
   if (ASK.cat) { cands = cands.filter((i) => i.cat === ASK.cat); facets.push('in ' + CATS[ASK.cat]); }
-  if (ASK.when === 'week') { cands = cands.filter((i) => (Date.now() - i.date) / 864e5 <= 7); facets.push('from the last 7 days'); }
-  if (ASK.when === 'month') { cands = cands.filter((i) => inMonth(i, y0, m0)); facets.push('from this month'); }
-  if (ASK.when === 'year') { cands = cands.filter((i) => inYear(i, y0)); facets.push('from ' + y0); }
-  if (ASK.when === 'lastyear') { cands = cands.filter((i) => inYear(i, y0 - 1)); facets.push('from ' + (y0 - 1)); }
+  const chipped = chipRange(); if (chipped) { cands = cands.filter((i) => WHEN.inRange(dayKey(i.date), chipped)); facets.push('from ' + chipped.label); }
   if (/unorganis|never organis|not in a space|no space|unfiled/.test(s)) { cands = cands.filter((i) => !i.spaces.length); facets.push('not in any Space'); }
   const stop = new Set(['what', 'did', 'i', 'save', 'saved', 'show', 'me', 'find', 'the', 'that', 'things', 'thing', 'about', 'have', 'of', 'for', 'from', 'my', 'a', 'an', 'in', 'on', 'to', 'all', 'everything', 'add', 'added', 'sent', 'send', 'last', 'week', 'month', 'year', 'this', 'past', 'not', 'any', 'space', 'is', 'are', 'was', 'were', 'those', 'these', 'some', 'stuff']);
-  const rest = words.filter((w) => !stop.has(w) && !typeMap[w] && w !== monthWord && w !== yearWord && !(space && space.name.toLowerCase().includes(w)) && !(srcKey && w.includes(srcKey)) && !(catKey && CATS[catKey].toLowerCase().includes(w)));
-  return { cands, facets, rest, empty: !facets.length && !rest.length && !ASK.src && !ASK.form && !ASK.cat && !ASK.when };
+  const rest = words.filter((w) => !stop.has(w) && !typeMap[w] && !(space && space.name.toLowerCase().includes(w)) && !(srcKey && w.includes(srcKey)) && !(catKey && CATS[catKey].toLowerCase().includes(w)));
+  return { cands, facets, rest, said, empty: !facets.length && !rest.length && !ASK.src && !ASK.form && !ASK.cat && !ASK.when };
 }
 async function renderAsk(q) {
-  const B = $('#askbody');
+  const B = $('#askbody'); askSeq++;   // typing again drops any answer still on its way
+  ASK.said = WHEN.parse(q); renderChips();
   if (!q.trim() && !Object.values(ASK).some(Boolean)) { B.innerHTML = `<p class="answer">Type a word, a #tag, a month, a year, or a question. Tekensa searches what you sent, what it read inside, and what you noted; the chips narrow it.</p><div class="tries">${TRIES.map((t) => `<button data-try="${esc(t)}">${esc(t)}</button>`).join('')}</div>`; return; }
   const { cands, facets, rest, empty } = parseAsk(q);
   let results = cands;
@@ -454,7 +484,47 @@ async function renderAsk(q) {
   const kinds = {}; results.forEach((i) => { kinds[i.type] = (kinds[i.type] ?? 0) + 1; });
   const desc = Object.entries(kinds).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, n]) => `${n} ${k}${n > 1 ? 's' : ''}`).join(', ');
   const ans = !results.length ? `<p class="answer">Nothing about that yet. If you sent it, it'll be here; if not, send it and forget about it.</p>` : `<p class="answer">You saved <span class="n">${results.length}</span> thing${results.length > 1 ? 's' : ''} ${facets.join(', ')}${results.length > 1 ? `, including ${desc}` : ''}.</p>${limited ? `<p class="honest">${limited} of these are links Tekensa couldn't read inside; they matched on your words.</p>` : ''}`;
-  B.innerHTML = `${ans}${results.length ? `<div class="askacts"><button class="y" data-ask-space>make a space from these</button></div>` : ''}<div class="grid">${results.map((i) => cardHtml(i, { grid: true })).join('')}</div>`;
+  B.innerHTML = `${ans}${results.length ? `<div class="askacts"><button class="y" data-ask-space>make a space from these</button></div>` : ''}<div class="grid">${results.map((i) => cardHtml(i, { grid: true })).join('')}</div>${installLine()}`;
+  B._cands = results;
+}
+/* ---------- 6.7: a question goes to the server's ask; the cards are the ids it names, never the sentence ---------- */
+let askSeq = 0;
+// the tapped chips, in the function's own words. The form chips are display words; the function takes the schema's seven
+// kinds, so each form is sent as the kind it belongs to (a reel is a link). "products" has no server filter and is not sent.
+const KIND_OF_FORM = { photo: 'image', video: 'video', voice: 'audio', document: 'document', note: 'text', reel: 'link', post: 'link', article: 'link', place: 'link' };
+function askFilters(said) {
+  const f = {};
+  if (ASK.src) f.sources = [ASK.src];
+  if (ASK.form && KIND_OF_FORM[ASK.form]) f.kinds = [KIND_OF_FORM[ASK.form]];
+  if (ASK.cat) f.categories = [ASK.cat];
+  const range = WHEN.intersect(said, chipRange());
+  if (range) { f.from = range.from; f.to = range.to; }
+  return Object.keys(f).length ? f : undefined;
+}
+async function askServer(q) {
+  const B = $('#askbody'); const seq = ++askSeq;
+  ASK.said = WHEN.parse(q); renderChips();
+  B.innerHTML = `<p class="status-pill"><i></i>asking</p><p class="answer" style="color:var(--mute)">${esc(q)}</p>`;
+  let res, body = {};
+  try {
+    res = await fetch(cfg.askUrl, { method: 'POST', headers: { authorization: 'Bearer ' + session.access_token, apikey: cfg.supabaseAnonKey, 'content-type': 'application/json' }, body: JSON.stringify({ q, filters: askFilters(ASK.said) }) });
+    body = await res.json().catch(() => ({}));
+  } catch (e) { if (seq !== askSeq) return; B.innerHTML = `<p class="err">Could not ask right now: ${esc(e.message)}. The search box still works.</p>`; B._cands = []; return; }
+  if (seq !== askSeq) return;
+  if (res.status === 429) { B.innerHTML = `<p class="answer">That is your hundred questions for today; the search box still works.</p>`; B._cands = []; return; }
+  if (!res.ok) { B.innerHTML = `<p class="err">Could not ask right now (${res.status}${body && body.error ? ': ' + esc(String(body.error)) : ''}). The search box still works.</p>`; B._cands = []; return; }
+  const byId = new Map(ITEMS.map((i) => [i.id, i]));
+  const ids = Array.isArray(body.ids) ? body.ids.map(String) : [];
+  const results = ids.map((id) => byId.get(id)).filter(Boolean);
+  const older = ids.length - results.length;   // named by the server but past the 500 this page holds
+  const count = Number.isFinite(Number(body.count)) ? Number(body.count) : ids.length;
+  const limited = Number(body.limited) || 0;
+  const took = Number(body.took_ms) > 0 ? ` · ${(Number(body.took_ms) / 1000).toFixed(1)} s` : '';
+  B.innerHTML = `<p class="answer">${esc(body.answer || 'Nothing about that yet.')}</p>
+    <p class="askcount"><span class="n">${count}</span> thing${count === 1 ? '' : 's'}${limited ? ` · ${limited} ${limited === 1 ? 'is a link' : 'are links'} Tekensa couldn't read inside` : ''}${older ? ` · ${older} older ${older === 1 ? 'one is' : 'are'} not on this page` : ''}${took}</p>
+    ${body.honest ? `<p class="honest">${esc(body.honest)}</p>` : ''}
+    ${results.length ? `<div class="askacts"><button class="y" data-ask-space>make a space from these</button></div>` : ''}${installLine()}
+    <div class="grid">${results.map((i) => cardHtml(i, { grid: true })).join('')}</div>`;
   B._cands = results;
 }
 
@@ -513,7 +583,7 @@ function route() {
   if (!session) { location.replace('/login/'); return; }
   const p = (location.hash || '#/home').slice(2).split('/');
   if (p[0] === 'home' || p[0] === '') { renderHome(); show('v-home'); setNav('home'); }
-  else if (p[0] === 'c' || p[0] === 'src' || p[0] === 'all' || p[0] === 'shelf') { renderList(p[0], p[1]); show('v-list'); setNav('home'); }
+  else if (p[0] === 'c' || p[0] === 'src' || p[0] === 'all' || p[0] === 'shelf' || p[0] === 'products' || p[0] === 'entity') { renderList(p[0], p[1]); show('v-list'); setNav('home'); }
   else if (p[0] === 'days') { renderDays(); show('v-days'); setNav('days'); }
   else if (p[0] === 'lists') { renderLists(); show('v-lists'); setNav('lists'); }
   else if (p[0] === 'spaces') { renderSpaces(); show('v-spaces'); setNav('spaces'); }
@@ -557,7 +627,9 @@ document.addEventListener('click', async (e) => {
     const sc = t.closest('[data-setcat]'); if (sc && openId) { const i = ITEMS.find((x) => x.id === openId); await correct(i, 'category', sc.dataset.setcat); openItem(openId); route(); toast('Filed under ' + CATS[sc.dataset.setcat] + '. Tekensa won’t change it back.'); return; }
   const rx = t.closest('[data-rmtag]'); if (rx && openId) { const i = ITEMS.find((x) => x.id === openId); await correct(i, 'tags', i.tags.filter((x) => x !== rx.dataset.rmtag)); openItem(openId); return; }
   if (t.id === 'addtag-go' && openId) { const v = $('#addtag-in').value.trim(); if (!v) return; const i = ITEMS.find((x) => x.id === openId); await correct(i, 'tags', [...new Set([...i.tags, v.toLowerCase()])]); openItem(openId); return; }
-  const tr = t.closest('[data-try]'); if (tr) { $('#askin').value = tr.dataset.try; renderAsk(tr.dataset.try); return; }
+  const tr = t.closest('[data-try]'); if (tr) { $('#askin').value = tr.dataset.try; askServer(tr.dataset.try); return; }
+  if (t.closest('[data-install-x]')) { try { localStorage.setItem(INSTALL_KEY, '1'); } catch {} document.querySelectorAll('.install-line').forEach((el) => el.remove()); return; }
+  if (t.closest('[data-ent]')) { closeSheet(); return; }   // the link itself moves to the entity shelf
   if (t.closest('[data-ask-space]')) { const c = $('#askbody')._cands ?? []; const id = await newSpace(); if (!id) return; for (const i of c) await addToSpace(i.id, id); closeAsk(); location.hash = '#/s/' + id; return; }
   const lay = t.closest('[data-layout]'); if (lay) { layout = lay.dataset.layout; document.querySelectorAll('[data-layout]').forEach((b) => b.classList.toggle('on', b === lay)); renderHome(); return; }
   if (t.id === 'addbtn') { openUpload(); return; }
@@ -568,12 +640,14 @@ $('#askfield').addEventListener('click', () => openAsk('')); $('#askm').addEvent
 $('#askin').addEventListener('input', () => { clearTimeout(askTimer); askTimer = setTimeout(() => renderAsk($('#askin').value), 250); });
 $('#askchips').addEventListener('click', (e) => {
   const b = e.target.closest('[data-chip]'); if (!b) return;
-  if (b.dataset.chip === 'clear') { for (const k of Object.keys(ASK)) ASK[k] = null; }
+  if (b.dataset.chip === 'clear') { stripSaid(); for (const k of Object.keys(ASK)) ASK[k] = null; }
+  else if (b.dataset.chip === 'said') stripSaid();   // the words come out of the box, so the chip does not come straight back
   else { const k = b.dataset.chip; ASK[k] = ASK[k] === b.dataset.val ? null : b.dataset.val; }
   renderChips(); renderAsk($('#askin').value);
 });
 $('#ask').addEventListener('click', (e) => { if (e.target.id === 'ask') closeAsk(); });
-$('#askform').addEventListener('submit', (e) => { e.preventDefault(); renderAsk($('#askin').value); });
+// typing searches as it goes; the ask button (or Enter) puts the words to the server as a question
+$('#askform').addEventListener('submit', (e) => { e.preventDefault(); clearTimeout(askTimer); const q = $('#askin').value.trim(); if (q) askServer(q); else renderAsk(''); });
 document.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openAsk(''); } if (e.key === 'Escape') { closeAsk(); closeSheet(); $('#upload').classList.remove('on'); } });
 $('#sheet').addEventListener('change', async (e) => { const n = e.target.closest('[data-note]'); if (!n) return; const i = ITEMS.find((x) => x.id === n.dataset.note); const { error } = await sb.from('captures').update({ note: n.value }).eq('id', i.id); if (error) return toast(error.message); i.note = n.value; toast('Note saved'); });
 /* drag and drop */

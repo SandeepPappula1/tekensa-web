@@ -32,6 +32,8 @@
   .steps li { display: flex; gap: .7rem; align-items: baseline; opacity: .8; }
   .steps li::before { counter-increment: s; content: counter(s); font-family: "Unbounded", system-ui, sans-serif; font-size: .8rem; color: var(--accent); flex: none; }
   .steps li.now { opacity: 1; font-weight: 600; }
+  .get-app { margin-top: 1.5rem; padding: 1rem 1.1rem; border-radius: 14px; background: var(--surf); box-shadow: inset 0 0 0 1px var(--line); }
+  .get-app p { margin: 0 0 .85rem; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -105,6 +107,11 @@
       <input id="set-pass" type="password" autocomplete="new-password" placeholder="choose a password" aria-label="Choose a password" />
       <button id="set-pass-go" class="btn" type="button">save password</button>
       <div id="set-pass-msg" class="link-note" role="status" aria-live="polite"></div>
+    </div>
+    <!-- 3.6: the app, offered once the things are in. One button; the join page does the rest. -->
+    <div id="get-app" class="get-app" hidden>
+      <p id="get-app-body">Your things are in. Get the app to be reminded the day a bill is due.</p>
+      <a class="btn y" href="/join/">get the app</a>
     </div>
     <p class="link-note">next time, open tekensa.com in your usual browser and sign in with your email and password. Everything you DM lands there.</p>
   </section>

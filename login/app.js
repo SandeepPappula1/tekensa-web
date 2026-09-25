@@ -159,6 +159,9 @@
         ? 'One thing you sent is now in your Tekensa.'
         : `${moved} things you sent are now in your Tekensa.`);
     }
+    // 3.6: the app, offered under the password block, counting what just came in
+    $('#get-app-body').textContent = (moved > 0 ? `Your ${moved} thing${moved === 1 ? ' is' : 's are'} in.` : 'Your things are in.') + ' Get the app to be reminded the day a bill is due.';
+    $('#get-app').hidden = false;
     show('step-done');
     stepNow(3);
     // THE RECEIPT. The inbox that was just linked is told so, in its own thread, naming this email

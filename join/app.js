@@ -9,8 +9,10 @@
   var cta = document.getElementById('ctaLink');
   cta.href = STORE_URL;
 
+  // No token: not an invite but a plain visit, the way /login and /home send people here (3.6, 3.7).
+  // The page then says what the app adds and keeps its one button.
   if (!token) {
-    document.getElementById('headline').textContent = "This invite link isn't valid";
-    document.getElementById('subline').textContent = 'Ask whoever sent it to share it again.';
-    cta.style.display = 'none';
+    document.getElementById('headline').textContent = 'Tekensa on your phone';
+    document.getElementById('subline').textContent = 'A reminder the day a bill is due, the camera, and the share sheet. Everything you send on the web is there too.';
+    document.getElementById('fallback').textContent = 'Already have it? Open it from your home screen.';
   }

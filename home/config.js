@@ -6,4 +6,5 @@ window.DUMP_CONFIG = {
   ingestUrl: 'https://mahlfdtxrnrrqgyhzjhs.supabase.co/functions/v1/ingest',
   eraseUrl: 'https://mahlfdtxrnrrqgyhzjhs.supabase.co/functions/v1/erase-account',
   linkedNoticeUrl: 'https://mahlfdtxrnrrqgyhzjhs.supabase.co/functions/v1/linked-notice',
+  askUrl: 'https://mahlfdtxrnrrqgyhzjhs.supabase.co/functions/v1/ask',
 };
