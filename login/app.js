@@ -42,8 +42,7 @@
     $('#have-code').hidden = false;
     $('#steps').hidden = false;
     $('#si-lead').innerHTML = '<b>One more step: which email is your Tekensa account?</b>';
-    $('#si-body').textContent = 'We will email it a sign-in link. New to Tekensa? The same step creates your account.';
-    $('#si-send').textContent = 'email me a sign-in link';
+    $('#si-body').textContent = 'Sign in with your password if you have set one. Otherwise we email a sign-in link. New to Tekensa? The email link creates your account.';
     $('#si-verify').textContent = 'sign in and link';
   } else if (linking) {
     $('#lk-lead').textContent = 'Now the six-digit code from the Tekensa reply in your Instagram or WhatsApp.';
@@ -87,6 +86,29 @@
     $('#signin-email-row').hidden = true;
     $('#signin-code-row').hidden = false;
     stepNow(2);
+  });
+
+  // Sign in with a password: no email, no code. A wrong password is said plainly; the email link stays beside it.
+  $('#si-pass-go').addEventListener('click', async () => {
+    $('#si-err').textContent = '';
+    email = $('#si-email').value.trim();
+    const password = $('#si-pass').value;
+    if (!email) { $('#si-err').textContent = 'Your email first.'; return; }
+    if (!password) { $('#si-err').textContent = 'No password yet? Use "email me a sign-in link", then set one.'; return; }
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) { $('#si-err').textContent = /invalid login credentials/i.test(error.message) ? 'That email and password do not match. Forgot it? Use the email link and set a new one.' : error.message; return; }
+    await refreshStep();
+  });
+
+  // Set a password on the linked screen, while the session from the email link is fresh.
+  $('#set-pass-go').addEventListener('click', async () => {
+    const msg = $('#set-pass-msg'); msg.textContent = '';
+    const password = $('#set-pass').value;
+    if (password.length < 8) { msg.textContent = 'Eight characters or more.'; return; }
+    const { error } = await sb.auth.updateUser({ password });
+    if (error) { msg.textContent = error.message; return; }
+    $('#set-pass').value = '';
+    msg.textContent = 'Saved. Next time, sign in with your email and this password.';
   });
 
   $('#si-verify').addEventListener('click', async () => {

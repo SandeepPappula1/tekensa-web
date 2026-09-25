@@ -358,6 +358,16 @@ document.addEventListener('click', async (e) => {
   if (error || !data || data.ok !== true) { toast('Could not unlink right now.'); return; }
   toast('Unlinked'); renderChannels();
 });
+// a password, set from inside a signed-in session: no email round trip (founder, 25 Sep 2026)
+$('#you-pass-go').addEventListener('click', async () => {
+  const msg = $('#you-pass-msg'); msg.textContent = '';
+  const password = $('#you-pass').value;
+  if (password.length < 8) { msg.textContent = 'Eight characters or more.'; return; }
+  const { error } = await sb.auth.updateUser({ password });
+  if (error) { msg.textContent = error.message; return; }
+  $('#you-pass').value = '';
+  msg.textContent = 'Saved. Next time, sign in with your email and this password.';
+});
 async function renderAudit() {
   const el = $('#you-audit'); if (!el) return;
   const { data, error } = await sb.rpc('account_audit');
