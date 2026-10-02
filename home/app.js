@@ -139,7 +139,15 @@ const namesEntity = (i, name) => i.entities.some((e) => String(e.name ?? '').toL
 /* ---------- 3.7: one quiet line about the app under results; dismissed once, never shown again ---------- */
 const INSTALL_KEY = 'tekensa.install.dismissed';
 function installDismissed() { try { return localStorage.getItem(INSTALL_KEY) === '1'; } catch { return false; } }
-function installLine() { return installDismissed() ? '' : `<p class="install-line"><span>Tekensa on your phone: reminders, camera, share sheet.</span><a href="/join/">get the app</a><button type="button" data-install-x aria-label="Not now">✕</button></p>`; }
+// 7.6: once this account has opened the app (an 'app.open' row of its own, written by record_app_open), the web stops
+// offering it. On a phone the line becomes a way back into the app; on a desk it is not drawn at all.
+let HAS_APP = false;
+const ON_PHONE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+async function loadHasApp() { try { const { data, error } = await sb.from('usage_events').select('id').eq('meter', 'app.open').limit(1); if (!error) HAS_APP = Array.isArray(data) && data.length > 0; } catch { /* unread is not "has it": the offer stays */ } }
+function installLine() {
+  if (HAS_APP) return ON_PHONE ? `<p class="install-line"><span>Tekensa is on this account's phone.</span><a href="tekensa://board">open the app</a></p>` : '';
+  return installDismissed() ? '' : `<p class="install-line"><span>Tekensa on your phone: reminders, camera, share sheet.</span><a href="/join/">get the app</a><button type="button" data-install-x aria-label="Not now">✕</button></p>`;
+}
 function gridHtml(items) { return `<div class="grid">${items.map((i) => cardHtml(i, { grid: true })).join('')}</div>`; }
 function spaceName(id) { return SPACES.find((s) => s.id === id)?.name ?? ''; }
 
@@ -665,4 +673,4 @@ sb.auth.onAuthStateChange((evt, s) => {
   if (evt === 'SIGNED_OUT') { session = null; location.replace('/login/'); return; }
   if (s) session = s;
 });
-sb.auth.getSession().then(async ({ data }) => { session = data.session; if (!session) { location.replace('/login/'); return; } $('#avatar').textContent = (session.user.email ?? '·')[0].toUpperCase(); await loadAll(); route(); });
+sb.auth.getSession().then(async ({ data }) => { session = data.session; if (!session) { location.replace('/login/'); return; } $('#avatar').textContent = (session.user.email ?? '·')[0].toUpperCase(); await Promise.all([loadAll(), loadHasApp()]); route(); });
