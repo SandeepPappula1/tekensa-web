@@ -615,7 +615,7 @@ function route() {
   else if (p[0] === 'lists') { renderLists(); show('v-lists'); setNav('lists'); }
   else if (p[0] === 'spaces') { renderSpaces(); show('v-spaces'); setNav('spaces'); }
   else if (p[0] === 's') { renderSpace(p[1]); show('v-space'); setNav('spaces'); }
-  else if (p[0] === 'you') { $('#you-email').textContent = session.user.email ?? ''; show('v-you'); setNav('you'); renderAudit(); renderChannels(); }
+  else if (p[0] === 'you') { $('#you-email').textContent = inboxAccount() ? 'Signed in with your Instagram or WhatsApp. No email on this account yet.' : (session.user.email ?? ''); $('#you-addemail').hidden = !inboxAccount(); show('v-you'); setNav('you'); renderAudit(); renderChannels(); }
   else if (p[0] === 'item') { renderHome(); show('v-home'); openItem(p[1]); }
   else location.hash = '#/home';
 }
@@ -716,6 +716,20 @@ document.addEventListener('dragover', (e) => { const d = e.target.closest('[data
 document.addEventListener('dragleave', (e) => { const d = e.target.closest('[data-drop],[data-space]'); if (d) d.classList.remove('over'); });
 document.addEventListener('drop', async (e) => { const d = e.target.closest('[data-drop],[data-space]'); if (!d || !dragId) return; e.preventDefault(); const sid = d.dataset.drop || d.dataset.space; if (sid === '__new') await newSpace(dragId); else await addToSpace(dragId, sid); $('#dock').classList.remove('on'); dragId = null; });
 
+/* ---------- an account made from an inbox (server 0029) ----------
+   It was opened by a link in a DM and has no email of the person's: the address on it is Tekensa's own placeholder,
+   never shown. The You page says how they are signed in and offers to add an email, which is what lets them sign in
+   from another browser or the app. The auth server emails a confirmation link to the new address before it takes. */
+const inboxAccount = () => /@users\.tekensa\.com$/i.test(session?.user?.email ?? '');
+document.addEventListener('click', async (e) => {
+  if (e.target.id !== 'you-addemail-go') return;
+  const msg = $('#you-addemail-msg'); msg.textContent = '';
+  const email = $('#you-addemail-in').value.trim();
+  if (!/^\S+@\S+\.\S+$/.test(email)) { msg.textContent = 'That does not look like an email address.'; return; }
+  const { error } = await sb.auth.updateUser({ email }, { emailRedirectTo: location.origin + '/home/' });
+  msg.textContent = error ? error.message : 'We emailed a link to ' + email + '. Tap it to confirm; until then you stay signed in as you are.';
+});
+
 /* ---------- boot ---------- */
 // /login is the one way in. INITIAL_SESSION is handled by getSession below (one load, not two); SIGNED_IN fires again
 // on tab refocus and TOKEN_REFRESHED hourly, neither of which is a reason to rebuild the view (review, 2026-09-25)
@@ -723,4 +737,4 @@ sb.auth.onAuthStateChange((evt, s) => {
   if (evt === 'SIGNED_OUT') { session = null; location.replace('/login/'); return; }
   if (s) session = s;
 });
-sb.auth.getSession().then(async ({ data }) => { session = data.session; if (!session) { location.replace('/login/'); return; } $('#avatar').textContent = (session.user.email ?? '·')[0].toUpperCase(); await Promise.all([loadAll(), loadHasApp()]); route(); });
+sb.auth.getSession().then(async ({ data }) => { session = data.session; if (!session) { location.replace('/login/'); return; } $('#avatar').textContent = inboxAccount() ? '·' : (session.user.email ?? '·')[0].toUpperCase(); await Promise.all([loadAll(), loadHasApp()]); route(); });

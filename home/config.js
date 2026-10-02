@@ -7,6 +7,8 @@ window.DUMP_CONFIG = {
   eraseUrl: 'https://mahlfdtxrnrrqgyhzjhs.supabase.co/functions/v1/erase-account',
   linkedNoticeUrl: 'https://mahlfdtxrnrrqgyhzjhs.supabase.co/functions/v1/linked-notice',
   askUrl: 'https://mahlfdtxrnrrqgyhzjhs.supabase.co/functions/v1/ask',
+  // the tap on the link a DM reply carries: it opens the person's Tekensa without a sign-in form (server 0029)
+  doorUrl: 'https://mahlfdtxrnrrqgyhzjhs.supabase.co/functions/v1/dm-door',
   // "continue with Google" on /login. false until the Google provider is enabled in Supabase Auth
   // (docs/META-SETUP.md, "Google sign-in"); with the provider off the button would lead to an error page.
   googleSignIn: false,

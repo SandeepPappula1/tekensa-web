@@ -87,6 +87,12 @@
     <div class="notes">
       <p>Everything you send lands in one collection, kept on Tekensa's server, readable only by you, and deleted when you say so.</p>
       <div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="signout">sign out</button></div>
+      <div id="you-addemail" hidden>
+        <h3 style="margin-top:28px">add your email</h3>
+        <p>You are signed in through the link in your DM. Add an email to sign in from another browser or the app too.</p>
+        <div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><input id="you-addemail-in" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" style="flex:1;min-width:200px"><button class="btn" id="you-addemail-go">add email</button></div>
+        <p id="you-addemail-msg" role="status" aria-live="polite"></p>
+      </div>
       <h3 style="margin-top:28px">password</h3>
       <p>Set one and you can sign in on any browser with your email and password, without waiting for an email. Eight characters or more.</p>
       <div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><input id="you-pass" type="password" autocomplete="new-password" placeholder="choose a password" style="flex:1;min-width:200px"><button class="btn" id="you-pass-go">save password</button></div>

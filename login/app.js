@@ -5,7 +5,7 @@
   const $ = (s) => document.querySelector(s);
 
   const show = (id) => {
-    for (const s of ['step-signin', 'step-code', 'step-done']) $('#' + s).hidden = s !== id;
+    for (const s of ['step-door', 'step-signin', 'step-code', 'step-done']) $('#' + s).hidden = s !== id;
   };
 
   /**
@@ -58,7 +58,56 @@
   const stepNow = (n) => { for (const i of [1, 2, 3]) $('#st-' + i).classList.toggle('now', i === n); };
   let autoTried = false;
 
+  /* ---------- the DM is the door (server 0029) ----------
+     ?k=<43 characters> is a one-time key that came down the person's own Instagram or WhatsApp thread. The page asks
+     the server what it is good for WITHOUT spending it (peek), then:
+       - the inbox already has an account  → spend it, take the one-time sign-in token, and go to /home;
+       - the inbox is new                  → ask one question. "open my tekensa" spends it and makes the account;
+                                             "I already have an account" leaves it unspent and shows the ordinary
+                                             sign-in, where the six-digit code in the same link joins the inbox.
+     Only the key is ever sent. A key that is wrong, used or expired gets one plain sentence and the ordinary sign-in.
+     The key is taken out of the address at once, so it is not left in the history of Instagram's browser. */
+  const doorKey = (() => { const k = new URLSearchParams(location.search).get('k') || ''; return /^[A-Za-z0-9_-]{43}$/.test(k) && cfg.doorUrl ? k : ''; })();
+  let doorActive = doorKey !== '';
+  if (doorKey) history.replaceState(null, '', location.pathname + (fromUrl.length === 6 ? '?c=' + fromUrl : ''));
+  const door = async (body) => {
+    const res = await fetch(cfg.doorUrl, { method: 'POST', headers: { apikey: cfg.supabaseAnonKey, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    let json = {}; try { json = await res.json(); } catch {}
+    return { ok: res.ok, status: res.status, json };
+  };
+  const doorFailed = (line) => { doorActive = false; $('#si-err').textContent = line; void refreshStep(); };
+  const DOOR_GONE = 'That link has already been used or has expired. Send us anything on Instagram and the reply brings a fresh one — or sign in below.';
+  async function openDoor() {
+    $('#door-new').hidden = true; $('#door-err').textContent = '';
+    $('#door-lead').innerHTML = '<b>Opening your Tekensa…</b>';
+    let r; try { r = await door({ k: doorKey }); } catch { r = { ok: false, status: 0, json: {} }; }
+    if (!r.ok) { doorFailed(r.status === 404 ? DOOR_GONE : r.status === 409 ? 'This inbox belongs to an account that signs in another way. Sign in below.' : 'Could not open it just now. Try the link again in a moment, or sign in below.'); return; }
+    // the token the server made is good once and only here; `type` is the server's own word for it
+    let v = await sb.auth.verifyOtp({ token_hash: r.json.token_hash, type: r.json.type || 'magiclink' });
+    if (v.error && (r.json.type || 'magiclink') !== 'email') v = await sb.auth.verifyOtp({ token_hash: r.json.token_hash, type: 'email' });
+    if (v.error) { doorFailed('Could not open it just now (' + v.error.message + '). Send us anything for a fresh link, or sign in below.'); return; }
+    location.replace('/home/');
+  }
+  async function startDoor() {
+    show('step-door');
+    const { data } = await sb.auth.getSession();
+    // already signed in in this browser: the key is not needed, and is left unspent
+    if (data?.session) { location.replace('/home/'); return; }
+    let p; try { p = await door({ k: doorKey, peek: true }); } catch { p = { ok: false, status: 0, json: {} }; }
+    if (!p.ok) { doorFailed(p.status === 404 ? DOOR_GONE : 'Could not open it just now. Try the link again in a moment, or sign in below.'); return; }
+    if (p.json.linked) { await openDoor(); return; }
+    const who = (p.json.channel === 'instagram' ? 'Instagram' : p.json.channel === 'whatsapp' ? 'WhatsApp' : 'your inbox') + (p.json.name ? ' ' + String(p.json.name).replace(/^@?/, '@') : '');
+    $('#door-lead').textContent = '';
+    const b = document.createElement('b'); b.textContent = 'Saved from ' + who + '.'; $('#door-lead').appendChild(b);
+    if (p.json.channel === 'whatsapp') $('#door-new .link-note').textContent = 'No email and no password. Your WhatsApp is the key: any time you send us something, the reply opens your Tekensa.';
+    $('#door-new').hidden = false;
+  }
+  $('#door-open').addEventListener('click', () => { void openDoor(); });
+  // "I already have an account": the key stays unspent; the ordinary sign-in below joins this inbox by the code in the link
+  $('#door-have').addEventListener('click', () => { doorActive = false; void refreshStep(); });
+
   async function refreshStep() {
+    if (doorActive) return;   // the door is deciding; it calls back here if it hands over to the ordinary sign-in
     const { data } = await sb.auth.getSession();
     if (data?.session && !linking) { location.replace('/home/'); return; }
     show(data?.session ? 'step-code' : 'step-signin');
@@ -196,5 +245,5 @@
 
   // once linked the done step stays: SIGNED_IN fires again on tab refocus and TOKEN_REFRESHED hourly (review, 2026-09-25)
   sb.auth.onAuthStateChange(() => { if ($('#step-done').hidden) void refreshStep(); });
-  void refreshStep();
+  if (doorActive) void startDoor(); else void refreshStep();
 })();

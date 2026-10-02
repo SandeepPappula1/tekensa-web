@@ -56,6 +56,20 @@
     <li id="st-3">Your Instagram is linked and everything you sent is in</li>
   </ol>
 
+  <!-- THE DM IS THE DOOR (founder, 3 Oct 2026). A link from a Tekensa reply on Instagram or WhatsApp carries a
+       one-time key (?k=…). Someone whose inbox already has an account is taken straight in; someone new is asked one
+       thing only — open a Tekensa for this inbox, or join it to an account they already have — and never for an email. -->
+  <section id="step-door" class="link-step" hidden>
+    <p id="door-lead"><b>Opening your Tekensa…</b></p>
+    <div id="door-new" hidden>
+      <p id="door-body">What you sent is saved. Open your Tekensa to see it, sorted and searchable.</p>
+      <p><button id="door-open" class="btn y" type="button">open my tekensa</button></p>
+      <p class="link-note">No email and no password. Your Instagram is the key: any time you send us something, the reply opens your Tekensa.</p>
+      <p class="link-note"><button id="door-have" class="btn" type="button">I already have a Tekensa account</button></p>
+    </div>
+    <div id="door-err" class="link-err" role="alert" aria-live="polite"></div>
+  </section>
+
   <!-- STEP 1 — who you are. The same email-code sign-in index.html uses,
        copied rather than imported: index.html is another seat's file and a
        shared module between two pages is a coupling neither of us asked for. -->
