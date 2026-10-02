@@ -551,3 +551,18 @@ textarea.note{width:100%;min-height:64px;background:var(--surf);border:1px solid
 .sheet .hero.bare .poster .ttl,.sheet .hero.bare .poster .ed,.sheet .hero.bare .poster .txt,.sheet .hero.bare .poster .glyph{display:none}
 /* the card line under a narrow poster wraps instead of being cut mid-word */
 .grid .meta .s{flex-wrap:wrap;white-space:normal;row-gap:0}
+/* 3 Oct 2026, seen at phone width (the width a link from Instagram opens at):
+   - the bottom bar has six things in it and had five columns, so `you` fell to a second row;
+   - a shelf or a day was one full-width card per row — a long scroll of big posters, nothing like the grid a person
+     scrolls on Instagram. Two across, with the poster title sized for it;
+   - a day's heading wrapped onto three lines with its count squeezed beside it. */
+@media (max-width:760px){
+  .bottomnav{grid-template-columns:1fr 1fr 1fr 1fr 1.2fr 1fr}
+  .grid,.grid.wide,.grid.vert{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 10px}
+  .grid .poster .ttl{font-size:14px;left:9px;right:9px;bottom:9px}
+  .grid .poster .glyph{left:8px;top:8px;width:24px;height:24px}
+  .grid .poster .glyph svg{width:12px;height:12px}
+  .rail.day .rail-h{flex-wrap:wrap;gap:2px 10px}
+  .rail.day .rail-h h2{font-size:18px;line-height:1.2}
+  .page-h h1{font-size:28px}
+}
