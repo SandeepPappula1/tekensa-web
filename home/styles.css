@@ -532,3 +532,22 @@ textarea.note{width:100%;min-height:64px;background:var(--surf);border:1px solid
 /* 5.2: a product or brand the reader named is a way to its shelf */
 .tags a.tag.ent{color:var(--ink);text-decoration:none;box-shadow:inset 0 0 0 1px rgba(124,124,255,.45)}
 .tags a.tag.ent:hover{box-shadow:inset 0 0 0 1px var(--accent)}
+
+/* 3 Oct 2026: the home's index, cards that line up, and a card that says its shelf */
+/* a card is a <button>; stretched to its row's height it centres what is inside, so cards of different shapes sat at
+   different heights. Top-aligned, every poster starts on the same line. */
+.track{align-items:flex-start}
+.grid{align-items:start}
+.browse{display:grid;gap:8px;margin:0 0 32px}
+.brow{display:flex;align-items:center;gap:6px;overflow-x:auto;scrollbar-width:none;padding:1px 0}
+.brow::-webkit-scrollbar{display:none}
+.brow .lbl{flex:none;width:46px;font-size:12px;color:var(--mute)}
+.brow .chip{flex:none;display:inline-flex;align-items:center;gap:7px;text-decoration:none;white-space:nowrap;transition:border-color .15s,color .15s}
+.brow .chip b{font-weight:600;font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+.brow .chip:hover,.brow .chip:focus-visible{border-color:var(--accent);color:var(--ink)}
+.meta .s .c{color:var(--ink2)}
+/* no picture: the poster is a short band, so the title and what to do with the thing are on screen at once */
+.sheet .hero.bare .poster{width:100%;aspect-ratio:auto;height:84px}
+.sheet .hero.bare .poster .ttl,.sheet .hero.bare .poster .ed,.sheet .hero.bare .poster .txt,.sheet .hero.bare .poster .glyph{display:none}
+/* the card line under a narrow poster wraps instead of being cut mid-word */
+.grid .meta .s{flex-wrap:wrap;white-space:normal;row-gap:0}

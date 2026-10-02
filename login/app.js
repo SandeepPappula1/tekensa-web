@@ -69,6 +69,20 @@
     }
   }
 
+  // GOOGLE. The same account as the email one (Supabase joins a Google identity to an existing account with the
+  // same verified address), reached without an email being sent. It comes back to THIS page with the Instagram
+  // code still in the address, exactly as the email link does, so the session it creates links at once. The
+  // button is drawn only when config.js says the provider is on: with it off, Supabase answers a bare error page.
+  if (cfg.googleSignIn === true) {
+    $('#si-google-row').hidden = false;
+    $('#si-google').addEventListener('click', async () => {
+      $('#si-err').textContent = '';
+      const back = location.origin + '/login/' + (fromUrl.length === 6 ? '?c=' + fromUrl : '');
+      const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: back } });
+      if (error) $('#si-err').textContent = 'Could not reach Google just now (' + error.message + '). Use your email below instead.';
+    });
+  }
+
   $('#si-send').addEventListener('click', async () => {
     $('#si-err').textContent = '';
     email = $('#si-email').value.trim();

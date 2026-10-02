@@ -67,6 +67,13 @@
          sign in with it here without waiting on email at all. The email link stays as the way in for anyone
          without a password, and as the way back for anyone who forgot it. -->
     <div id="signin-email-row">
+      <!-- GOOGLE (founder, 3 Oct 2026): a sign-in that sends no email at all, so the mailer's two-an-hour cap
+           stops being the limit on who can sign up, and Google has already proved the address. Drawn only
+           when config.js says the provider is switched on in Supabase; the email and password stay below. -->
+      <div id="si-google-row" hidden>
+        <button id="si-google" class="btn y" type="button">continue with Google</button>
+        <p class="link-note">No email to wait for. Or use your email below.</p>
+      </div>
       <input id="si-email" type="email" inputmode="email" autocomplete="username" placeholder="you@example.com" />
       <input id="si-pass" type="password" autocomplete="current-password" placeholder="password, if you set one" aria-label="Your password, if you set one" />
       <div class="row2">

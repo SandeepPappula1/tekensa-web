@@ -130,7 +130,7 @@ function cardHtml(i, opts = {}) {
   const flag = i.status === 'failed' ? `<span class="flag bad">couldn’t read</span>` : i.status === 'limited' && i.err ? `<span class="flag">${esc(i.err.replace(/^model unavailable: /, 'model down: ').slice(0, 28))}</span>` : i.limited ? `<span class="flag">reference only</span>` : '';
   const facts = factsOf(i).filter((x) => x.k === 'when' || x.k === 'amount').slice(0, 2);   // a card shows the two facts a person scans for; names stay in the sheet
   const factLine = facts.length ? `<span class="f">${facts.map((x) => esc(x.v)).join(' · ')}</span>` : '';
-  return `<button class="card ${opts.grid ? '' : 's-' + shape} ${TITLED.has(i.type) ? 'titled' : ''} ${i.status === 'failed' ? 'failed' : ''}" draggable="true" data-id="${i.id}" aria-label="${esc(i.title)}">${posterHtml(i)}${flag}<div class="meta"><span class="t">${esc(i.title)}</span>${factLine}<span class="s">${srcHtml(i)} · ${ago(i.date)}${i.dup ? ' · sent again' : ''}</span></div></button>`;
+  return `<button class="card ${opts.grid ? '' : 's-' + shape} ${TITLED.has(i.type) ? 'titled' : ''} ${i.status === 'failed' ? 'failed' : ''}" draggable="true" data-id="${i.id}" aria-label="${esc(i.title)}">${posterHtml(i)}${flag}<div class="meta"><span class="t">${esc(i.title)}</span>${factLine}<span class="s">${i.cat && i.cat !== 'unsorted' ? `<span class="c">${esc(CATS[i.cat] ?? i.cat)}</span> · ` : ''}${srcHtml(i)} · ${ago(i.date)}${i.dup ? ' · sent again' : ''}</span></div></button>`;
 }
 function rail(title, items, why, link) { if (!items.length) return ''; return `<section class="rail"><div class="rail-h"><h2>${esc(title)}</h2>${why ? `<span class="why">${esc(why)}</span>` : ''}${link ? `<a href="${link}">see all ›</a>` : ''}</div><div class="track">${items.slice(0, 14).map((i) => cardHtml(i)).join('')}</div></section>`; }
 // 5.2: a thing is a product when the reader named a product or a brand in it, or the link itself is a product page
@@ -161,24 +161,43 @@ function renderHome() {
   if (!live.length) { B.innerHTML = `<div class="empty"><div><h1>Send us anything you don't want to lose.</h1><p>A link, a screenshot, a voice note, a PDF, a thought. Don't sort it. Just send it.</p><div class="ways"><div class="way"><b>+ add</b><small>Paste a link or text, or pick a file.</small></div><div class="way"><b>Instagram</b><small>DM anything to <a href="https://instagram.com/tekensa" target="_blank" rel="noopener">@tekensa</a>. The reply sends you a code; enter it at <a href="/login/?c=">tekensa.com/login</a> and it all lands here.</small></div><div class="way"><b>WhatsApp</b><small>Coming: the same, once the number is live.</small></div></div></div></div>`; return; }
   if (layout === 'grid') { B.innerHTML = gridHtml(live); return; }
   const processing = live.filter((i) => !['ready', 'limited'].includes(i.status));
+  // THE HOME IS AN INDEX FIRST (3 Oct 2026). It used to be up to thirty rows, one per shelf, most of them holding one
+  // or two cards beside an empty screen, with the same thing repeated in six of them: a person looking for "that
+  // stroller reel" scrolled past all of it. Now every shelf that holds anything is one tap away in the index, with
+  // its count, and a shelf earns a row of its own only when it has enough in it to be worth scrolling (RAIL_MIN).
+  // The two rows that ask for something — needs another look, not sorted yet — are shown whatever they hold.
+  const full = (items) => (items.length >= RAIL_MIN ? items : []);
   const parts = [
     processing.length ? `<p class="status-pill" style="margin:0 0 14px"><i></i>${processing.length === 1 ? 'one thing is being read' : processing.length + ' things are being read'}</p>` : '',
+    browseHtml(live),
     rail('Recently added', live, 'newest first', '#/all'),
     ...SPACES.map((s) => rail(s.name, live.filter((i) => i.spaces.includes(s.id)), 'a Space you made', `#/s/${s.id}`)),
-    ...Object.keys(CATS).filter((c) => c !== 'unsorted').map((c) => rail(CATS[c], live.filter((i) => i.cat === c), '', `#/c/${c}`)),
     // 0023: the shelver's rows. A reel is not a photo; a thing still being read is not hidden but named.
-    ...Object.keys(LIST_LABEL).map((l) => rail(LIST_LABEL[l], live.filter((i) => i.shelves.includes('list:' + l)), LIST_WHY[l], `#/shelf/list:${l}`)),
-    rail('Reels', live.filter((i) => i.shelves.includes('form:reel')), 'every reel you sent', '#/shelf/form:reel'),
-    rail('Posts', live.filter((i) => i.shelves.includes('form:post')), 'shared posts', '#/shelf/form:post'),
-    rail('Products', live.filter(isProduct), 'things that name a product or a brand', '#/products'),
+    ...Object.keys(LIST_LABEL).map((l) => rail(LIST_LABEL[l], full(live.filter((i) => i.shelves.includes('list:' + l))), LIST_WHY[l], `#/shelf/list:${l}`)),
+    ...Object.keys(CATS).filter((c) => c !== 'unsorted').map((c) => rail(CATS[c], full(live.filter((i) => i.cat === c)), '', `#/c/${c}`)),
+    rail('Products', full(live.filter(isProduct)), 'things that name a product or a brand', '#/products'),
+    ...topHashtags(live, 3).map((h) => rail('#' + h, full(live.filter((i) => i.hashtags.includes(h))), 'a tag you sent', `#/shelf/tag:${encodeURIComponent(h)}`)),
     rail('Needs another look', live.filter((i) => !i.complete && ['ready', 'limited', 'failed'].includes(i.status)), 'kept, but something is still missing — Tekensa will try again', '#/shelf/incomplete'),
-    ...topHashtags(live, 3).map((h) => rail('#' + h, live.filter((i) => i.hashtags.includes(h)), 'a tag you sent', `#/shelf/tag:${encodeURIComponent(h)}`)),
-    rail('From WhatsApp', live.filter((i) => i.src === 'whatsapp'), 'forwarded to Tekensa', '#/src/whatsapp'),
-    rail('From Instagram', live.filter((i) => i.src === 'instagram'), 'shared to Tekensa', '#/src/instagram'),
-    rail('Not in any Space yet', live.filter((i) => !i.spaces.length), 'and that’s fine', '#/all'),
     rail('Not sorted yet', live.filter((i) => i.cat === 'unsorted'), 'Tekensa couldn’t place these; tap one to file it', '#/c/unsorted'),
   ];
   B.innerHTML = parts.join('');
+}
+/* ---------- the index: every shelf that holds something, with its count, one tap away ---------- */
+const RAIL_MIN = 3;
+const FORM_WORD = { reel: 'reels', post: 'posts', story: 'stories', photo: 'photos', video: 'videos', article: 'links', document: 'documents', note: 'notes', voice: 'voice notes', place: 'places', product: 'product pages', music: 'music' };
+function browseHtml(live) {
+  const chip = (label, n, href) => (n ? `<a class="chip" href="${href}">${esc(label)}<b>${n}</b></a>` : '');
+  const row = (label, chips) => { const c = chips.join(''); return c ? `<div class="brow"><span class="lbl">${label}</span>${c}</div>` : ''; };
+  const onShelf = (s) => live.filter((i) => i.shelves.includes(s)).length;
+  const sources = [...new Set(live.map((i) => i.src))];
+  const rows = [
+    row('kind', [...Object.keys(FORM_WORD).map((f) => chip(FORM_WORD[f], onShelf('form:' + f), `#/shelf/form:${f}`)), chip('products', live.filter(isProduct).length, '#/products')]),
+    row('about', Object.keys(CATS).filter((c) => c !== 'unsorted').map((c) => chip(CATS[c].toLowerCase(), live.filter((i) => i.cat === c).length, `#/c/${c}`))),
+    row('lists', Object.keys(LIST_LABEL).map((l) => chip(LIST_LABEL[l], onShelf('list:' + l), `#/shelf/list:${l}`))),
+    // where it came from is only a way to narrow when there is more than one door in use
+    sources.length > 1 ? row('from', sources.map((s) => chip((SRCLABEL[s] ?? s), live.filter((i) => i.src === s).length, `#/src/${encodeURIComponent(s)}`))) : '',
+  ].join('');
+  return rows ? `<nav class="browse" aria-label="Browse your things">${rows}</nav>` : '';
 }
 function topHashtags(items, n) { const c = new Map(); for (const i of items) for (const h of i.hashtags) c.set(h, (c.get(h) ?? 0) + 1); return [...c.entries()].filter(([, k]) => k >= 2).sort((a, b) => b[1] - a[1]).slice(0, n).map(([h]) => h); }
 /* ---------- day by day: every single thing, under the day it arrived; nothing filtered, nothing folded ---------- */
@@ -354,7 +373,7 @@ async function openItem(id) {
       <div class="tags" style="margin-top:10px">${i.hashtags.map((h) => `<a class="tag" href="#/shelf/tag:${encodeURIComponent(h)}" title="a hashtag you sent">#${esc(h)}</a>`).join('')}${i.tags.filter((t) => !i.hashtags.includes(t)).map((t) => `<span class="tag">${esc(t)}<span class="x" data-rmtag="${esc(t)}" title="remove">✕</span></span>`).join('')}${i.ents.map((e) => (e[1] === 'product' || e[1] === 'brand') ? `<a class="tag ent" href="#/entity/${encodeURIComponent(e[0])}" title="${esc(e[1])} · everything that names it" data-ent>${esc(e[0])} ›</a>` : `<span class="tag ent" title="${esc(e[1])}">${esc(e[0])}</span>`).join('')}<span class="addtag"><input id="addtag-in" placeholder="add a word"><button class="tag" id="addtag-go">add</button></span></div></div>
     <div class="sec"><h4><span class="truth you">Yours</span> Spaces</h4><div class="spacerow">${SPACES.map((s) => `<button class="${i.spaces.includes(s.id) ? 'in' : ''}" data-tog="${s.id}">${i.spaces.includes(s.id) ? '✓ ' : '+ '}${esc(s.name)}</button>`).join('')}<button data-newspace>+ New Space</button></div></div>${connectedHtml}<div class="sec" id="related" hidden></div>`;
 
-  const hero = i.type === 'photo' && media ? `<div class="hero"><img class="thumb" src="${esc(media)}" alt=""><button class="x" id="sheetx" aria-label="Close">✕</button></div>` : `<div class="hero ${SHAPE[i.type] ?? 'sq'}" style="--hero-bg:${art(i)}">${posterHtml({ ...i, status: null }, true)}<button class="x" id="sheetx" aria-label="Close">✕</button></div>`;
+  const hero = i.type === 'photo' && media ? `<div class="hero"><img class="thumb" src="${esc(media)}" alt=""><button class="x" id="sheetx" aria-label="Close">✕</button></div>` : `<div class="hero ${SHAPE[i.type] ?? 'sq'}${i.image || media ? '' : ' bare'}" style="--hero-bg:${art(i)}">${posterHtml({ ...i, status: null }, true)}<button class="x" id="sheetx" aria-label="Close">✕</button></div>`;
   $('#sheet').innerHTML = `${hero}<div class="body">
     <div class="canon"><h2>${esc(i.title)}</h2>${factsHtml}${i.sum ? `<p class="understand">${esc(i.sum)}</p>` : ''}${prov}</div>
     ${lifecycle}
@@ -601,6 +620,37 @@ function route() {
   else location.hash = '#/home';
 }
 window.addEventListener('hashchange', route);
+
+/* ---------- a photo is shown as the photo (3 Oct 2026) ----------
+   A card drew a picture only when a LINK brought one (facets.link.image). A photo a person sent — the commonest thing
+   after a reel — was a blank painted rectangle with its title under it, on every shelf. The file is theirs and is
+   already kept, so the cards on screen ask for it: one read of capture_media for the photos that have no picture yet,
+   one batch of ten-minute signed URLs, and the image goes into every card of that thing. Each card is asked about
+   once per render; a URL that has gone stale fails quietly (the delegated error handler removes the image and the
+   painted poster shows through). */
+let thumbTimer = null;
+async function hydrateThumbs() {
+  const posters = [...document.querySelectorAll('.card[data-id] .poster:not([data-th])')];
+  const want = new Map();
+  for (const p of posters) {
+    p.dataset.th = '1';
+    const id = p.closest('.card').dataset.id; const item = ITEMS.find((x) => x.id === id);
+    if (!item || item.type !== 'photo' || item.image || p.querySelector('img.thumb')) continue;
+    if (!want.has(id)) want.set(id, []); want.get(id).push(p);
+  }
+  if (!want.size) return;
+  const put = (id, url) => { if (!url) return; for (const p of want.get(id) ?? []) { const img = document.createElement('img'); img.className = 'thumb'; img.alt = ''; img.loading = 'lazy'; img.src = url; p.prepend(img); } };
+  const missing = [...want.keys()].filter((id) => !signedUrls.has(id));
+  for (const id of want.keys()) if (signedUrls.has(id)) put(id, signedUrls.get(id));
+  if (!missing.length) return;
+  const { data: rows } = await sb.from('capture_media').select('capture_id, object_path').in('capture_id', missing.slice(0, 100)).eq('role', 'original');
+  const byPath = new Map((rows ?? []).filter((r) => missing.includes(r.capture_id)).map((r) => [r.object_path, r.capture_id]));
+  if (!byPath.size) return;
+  const { data: signed } = await sb.storage.from('dump-media').createSignedUrls([...byPath.keys()], 600);
+  for (const s of signed ?? []) { const id = byPath.get(s.path); if (!id || !s.signedUrl) continue; signedUrls.set(id, s.signedUrl); put(id, s.signedUrl); }
+}
+// every view, rail, sheet and answer is written with innerHTML; one observer covers them all, coalesced to a frame's worth
+new window.MutationObserver(() => { clearTimeout(thumbTimer); thumbTimer = setTimeout(() => { hydrateThumbs().catch(() => {}); }, 60); }).observe(document.body, { childList: true, subtree: true });
 document.addEventListener('click', async (e) => {
   const t = e.target;
   const card = t.closest('.card'); if (card) { openItem(card.dataset.id); return; }
