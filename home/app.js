@@ -169,13 +169,16 @@ function installDismissed() { try { return localStorage.getItem(INSTALL_KEY) ===
 let HAS_APP = false;
 const ON_PHONE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 async function loadHasApp() { try { const { data, error } = await sb.from('usage_events').select('id').eq('meter', 'app.open').limit(1); if (!error) HAS_APP = Array.isArray(data) && data.length > 0; } catch { /* unread is not "has it": the offer stays */ } }
+const APP_URL = (window.DUMP_CONFIG && window.DUMP_CONFIG.appStoreUrl) || '';
 function installLine() {
   if (HAS_APP) return ON_PHONE ? `<p class="install-line"><span>Tekensa is on this account's phone.</span><a href="tekensa://board">open the app</a></p>` : '';
+  if (!APP_URL) return ''; // nothing to get yet: no offer
   return installDismissed() ? '' : `<p class="install-line"><span>Tekensa on your phone: reminders, camera, share sheet.</span><a href="/join/">get the app</a><button type="button" data-install-x aria-label="Not now">✕</button></p>`;
 }
 // The day is the phone's to act on (founder, 3 Oct 2026): the feed here only shows it, and says where the acting is.
 function appLine() {
   if (HAS_APP) return ON_PHONE ? `<p class="ag-app">Remind me and done are in the app. <a href="tekensa://board">open the app</a></p>` : `<p class="ag-app">Remind me and done are in the app on your phone.</p>`;
+  if (!APP_URL) return `<p class="ag-app">A 09:00 reminder on the day, and ticking things done, come with the Android app — soon.</p>`;
   return `<p class="ag-app">Want a 09:00 reminder on the day, and to tick things done? That is the app. <a href="/join/">get the app</a></p>`;
 }
 function gridHtml(items) { return `<div class="grid">${items.map((i) => cardHtml(i, { grid: true })).join('')}</div>`; }

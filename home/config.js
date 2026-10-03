@@ -12,4 +12,7 @@ window.DUMP_CONFIG = {
   // "continue with Google" on /login. false until the Google provider is enabled in Supabase Auth
   // (docs/META-SETUP.md, "Google sign-in"); with the provider off the button would lead to an error page.
   googleSignIn: false,
+  // where "get the app" goes. Empty until there is a store listing (plan 7.3): with no address the web never offers
+  // the app — a button that leads back to the landing page is a dead end (seen in review, 4 Oct 2026).
+  appStoreUrl: '',
 };
