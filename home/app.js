@@ -272,10 +272,11 @@ async function toggleDone(id, iso) {
   const i = ITEMS.find((x) => x.id === id); if (!i) return;
   const had = doneDates(i);
   const next = had.includes(iso) ? had.filter((d) => d !== iso) : [...had, iso];
-  const facets = { ...(i.facets ?? {}), done_dates: next };
-  const { error } = await sb.from('captures').update({ facets }).eq('id', id);
-  if (error) { toast('Could not save that: ' + error.message); return; }
-  i.facets = facets; route(); toast(next.includes(iso) ? 'Done' : 'Back on the day');
+  // set_done_days (migration 0030) replaces the list atomically, so the reader's own writes to facets are never lost under ours;
+  // the app's board pulls the same list, so the tick is one tick everywhere.
+  const { data, error } = await sb.rpc('set_done_days', { p_id: id, p_days: next });
+  if (error || data !== true) { toast('Could not save that' + (error ? ': ' + error.message : '')); return; }
+  i.facets = { ...(i.facets ?? {}), done_dates: next }; route(); toast(next.includes(iso) ? 'Done' : 'Back on the day');
 }
 
 function renderDays() {
