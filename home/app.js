@@ -4,7 +4,8 @@ const cfg = window.DUMP_CONFIG;
 const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
 const $ = (s) => document.querySelector(s);
 /* a link is followed only if it is http(s): a javascript: or data: URL kept as an item must never become a clickable href (security audit, 2026-09-25) */
-const safeUrl = (u) => { try { const x = new URL(String(u ?? ''), location.href); return (x.protocol === 'https:' || x.protocol === 'http:') ? x.href : ''; } catch { return ''; } };
+// an empty or null value is no link at all — never the page's own address (seen 3 Oct 2026: a DM'd note offered "Open ↗" to /home)
+const safeUrl = (u) => { const raw = String(u ?? '').trim(); if (!raw) return ''; try { const x = new URL(raw, location.href); return (x.protocol === 'https:' || x.protocol === 'http:') ? x.href : ''; } catch { return ''; } };
 // a thumbnail that fails to load is removed; delegated, because the CSP forbids inline handlers
 document.addEventListener('error', (e) => { if (e.target && e.target.tagName === 'IMG' && e.target.classList.contains('thumb')) e.target.remove(); }, true);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -52,6 +53,29 @@ async function loadAll() {
   const tick = async () => { refreshRuns++; if (editing()) { refreshTimer = setTimeout(tick, 5000); return; } await loadAll(); route(); if (openId) openItem(openId); };
   if (inFlight && refreshRuns < 120) { refreshTimer = setTimeout(tick, 5000); } else if (!inFlight) refreshRuns = 0;
 }
+/* A title a person can recognise. The server titles a thing it could not read "Kept", and a link it could not fetch by its
+   domain ("reddit.com"); seen with real rows on 3 Oct 2026, a wall of those says nothing. The person's own words come
+   first, then the link's own path turned back into words, then the kind and where it came from. */
+// a path segment is words when it has a real word in it and is not an id: "never-gonna-give-you-up" yes, "C9xabc" and "dQw4w9WgXcQ" no
+const WORDISH = /^(?=.*[aeiou])(?![a-z]*\d)[a-z][a-z-]{3,}$/i;
+function titleOf(r, src) {
+  const t = (r.title ?? '').trim();
+  let host = null, path = '';
+  try { const u = new URL(r.original_url ?? ''); host = u.hostname.replace(/^(www|m)\./, ''); path = decodeURIComponent(u.pathname); } catch { /* no link */ }
+  const bare = t === '' || t === 'Kept' || (host !== null && t.toLowerCase() === host);
+  if (!bare) return t;
+  const own = (r.caption ?? r.original_text ?? '').replace(/\s+/g, ' ').trim();
+  if (own && !/^https?:\/\//i.test(own)) return own.length > 90 ? own.slice(0, 88).trimEnd() + '…' : own;
+  if (host !== null) {
+    const seg = path.split('/').filter(Boolean).filter((s) => WORDISH.test(s) || s.split(/[-_+]+/).filter((w) => WORDISH.test(w)).length >= 2).pop();
+    const words = seg ? seg.replace(/[-_+]+/g, ' ').replace(/\.[a-z0-9]{2,5}$/i, '').trim() : '';
+    const kind = /instagram\.com/.test(host) && /\/(reel|reels)\//.test(path) ? 'a reel' : /instagram\.com/.test(host) ? 'a post' : /tiktok\.com/.test(host) || /youtu/.test(host) ? 'a video' : 'a link';
+    return words && words.length > 2 ? `${words} · ${host}` : `${kind} on ${host}`;
+  }
+  const kindWord = { image: 'a photo', video: 'a video', audio: 'a voice note', document: 'a document', text: 'a note', link: 'a link' }[r.kind] ?? 'something';
+  return `${kindWord} from ${SRCLABEL[src] ?? src}`;
+}
+
 function toItem(r, spaces, corr) {
   const p = r.platform, f = r.facets ?? {};
   // Lifted to `types.js` so `collection.html` gets the identical answer —
@@ -60,7 +84,7 @@ function toItem(r, spaces, corr) {
   const type = window.DUMP_TYPES.typeOf(r);
   const src = SRCLABEL[p] ? p : r.channel;
   return {
-    id: r.id, type, src, title: corr.title ?? r.title ?? 'Kept', cat: corr.category ?? r.category ?? 'unsorted', tags: corr.tags ?? r.tags ?? [],
+    id: r.id, type, src, title: corr.title ?? titleOf(r, src), cat: corr.category ?? r.category ?? 'unsorted', tags: corr.tags ?? r.tags ?? [],
     ents: (r.entities ?? []).map((e) => [e.name, e.kind]), spaces, date: new Date(r.captured_at), sum: r.summary ?? null, url: r.original_url, conf: r.confidence == null ? null : Number(r.confidence),
     limited: r.understanding === 'reference', status: r.status, err: r.stage_error, text: r.original_text, caption: r.caption, ocr: r.kind === 'image' ? r.extracted_text : null, extracted: r.kind !== 'image' ? r.extracted_text : null, transcript: r.transcript,
     note: corr.note ?? r.note ?? '', image: f.link?.image ?? null, facets: f, corrected: (r.corrected_fields ?? []).length > 0 || Object.keys(corr).length > 0, viewedAt: r.viewed_at,
@@ -127,10 +151,11 @@ function srcHtml(i) { return `<span class="src ${i.src}"><i></i>${SRCLABEL[i.src
 function ago(d) { const n = Math.round((Date.now() - d) / 864e5); if (n <= 0) return 'today'; if (n === 1) return 'yesterday'; if (n < 7) return n + ' days ago'; if (n < 30) return Math.round(n / 7) + ' wk ago'; return Math.round(n / 30) + ' mo ago'; }
 function cardHtml(i, opts = {}) {
   const shape = SHAPE[i.type] ?? 'sq';
-  const flag = i.status === 'failed' ? `<span class="flag bad">couldn’t read</span>` : i.status === 'limited' && i.err ? `<span class="flag">${esc(i.err.replace(/^model unavailable: /, 'model down: ').slice(0, 28))}</span>` : i.limited ? `<span class="flag">reference only</span>` : '';
+  // the card says only that another look is owed; the reason (a 401 from a media lookup, a model that was down) is for the sheet
+  const flag = i.status === 'failed' ? `<span class="flag bad">couldn’t read</span>` : i.status === 'limited' || i.limited ? `<span class="flag">needs another look</span>` : '';
   const facts = factsOf(i).filter((x) => x.k === 'when' || x.k === 'amount').slice(0, 2);   // a card shows the two facts a person scans for; names stay in the sheet
   const factLine = facts.length ? `<span class="f">${facts.map((x) => esc(x.v)).join(' · ')}</span>` : '';
-  return `<button class="card ${opts.grid ? '' : 's-' + shape} ${TITLED.has(i.type) && !opts.grid ? 'titled' : ''} ${i.status === 'failed' ? 'failed' : ''}" draggable="true" data-id="${i.id}" aria-label="${esc(i.title)}">${posterHtml(i)}${flag}<div class="meta"><span class="t">${esc(i.title)}</span>${factLine}<span class="s">${i.cat && i.cat !== 'unsorted' ? `<span class="c">${esc(CATS[i.cat] ?? i.cat)}</span> · ` : ''}${srcHtml(i)} · ${ago(i.date)}${i.dup ? ' · sent again' : ''}</span></div></button>`;
+  return `<button class="card ${opts.grid ? '' : 's-' + shape} ${TITLED.has(i.type) && !opts.grid ? 'titled' : ''} ${i.status === 'failed' ? 'failed' : ''}" draggable="true" data-id="${i.id}" aria-label="${esc(i.title)}">${posterHtml(i)}${flag}<div class="meta">${i.type === 'note' && (i.text ?? '').replace(/\s+/g, ' ').trim() === i.title ? '' : `<span class="t">${esc(i.title)}</span>`}${factLine}<span class="s">${i.cat && i.cat !== 'unsorted' ? `<span class="c">${esc(CATS[i.cat] ?? i.cat)}</span> · ` : ''}${srcHtml(i)} · ${ago(i.date)}${i.dup ? ' · sent again' : ''}</span></div></button>`;
 }
 function rail(title, items, why, link) { if (!items.length) return ''; return `<section class="rail"><div class="rail-h"><h2>${esc(title)}</h2>${why ? `<span class="why">${esc(why)}</span>` : ''}${link ? `<a href="${link}">see all ›</a>` : ''}</div><div class="track">${items.slice(0, 14).map((i) => cardHtml(i)).join('')}</div></section>`; }
 // 5.2: a thing is a product when the reader named a product or a brand in it, or the link itself is a product page
@@ -163,7 +188,7 @@ function renderHome() {
   $('#greet').innerHTML = `${h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening'}.`;
   $('#greetsub').textContent = live.length ? `${live.length} thing${live.length > 1 ? 's' : ''} you didn't want to lose · organised for you.` : 'Send us anything you don’t want to lose.';
   const B = $('#home-body');
-  if (!live.length) { B.innerHTML = `<div class="empty"><div><h1>Send us anything you don't want to lose.</h1><p>A link, a screenshot, a voice note, a PDF, a thought. Don't sort it. Just send it.</p><div class="ways"><div class="way"><b>+ add</b><small>Paste a link or text, or pick a file.</small></div><div class="way"><b>Instagram</b><small>DM anything to <a href="https://instagram.com/tekensa" target="_blank" rel="noopener">@tekensa</a>. The reply sends you a code; enter it at <a href="/login/?c=">tekensa.com/login</a> and it all lands here.</small></div><div class="way"><b>WhatsApp</b><small>Coming: the same, once the number is live.</small></div></div></div></div>`; return; }
+  if (!live.length) { B.innerHTML = `<div class="empty"><div><h1>Send us anything you don't want to lose.</h1><p>A link, a screenshot, a voice note, a PDF, a thought. Don't sort it. Just send it.</p><div class="ways"><div class="way"><b>+ add</b><small>Paste a link or text, or pick a file.</small></div><div class="way"><b>Instagram</b><small>DM anything to <a href="https://instagram.com/tekensa" target="_blank" rel="noopener">@tekensa</a>. Tekensa reads it, files it, and replies with where it went and a one-tap link straight back here.</small></div><div class="way"><b>WhatsApp</b><small>Coming: the same, once the number is live.</small></div></div></div></div>`; return; }
   // THE BOARD (founder, 3 Oct 2026: "like Pinterest"): everything, newest first, as one wall of pictures with the index
   // above it as the way to narrow. A reel shows its cover, a link its picture, a photo itself, a note its words.
   if (layout === 'board') {
@@ -251,7 +276,9 @@ function agenda(items, { back = 30, ahead = 90 } = {}) {
     rows.push({ item: i, iso: d.iso, raw: d.raw, kind: dateKindOf(i), overdue: d.iso < today, today: d.iso === today });
   }
   rows.sort((a, b) => a.iso.localeCompare(b.iso) || a.item.date - b.item.date);
-  return rows;
+  // the same thing sent twice (a resend is kept, never hidden — 0019) is still one day in the feed
+  const seen = new Set();
+  return rows.filter((r) => { const k = r.iso + '|' + r.item.title.toLowerCase().replace(/\W+/g, ' ').trim().slice(0, 60); if (seen.has(k)) return false; seen.add(k); return true; });
 }
 function agendaRowHtml(r) {
   const amt = r.item.amounts[0] ? ` · ${esc(fmtAmount(r.item.amounts[0]))}` : '';
@@ -331,6 +358,17 @@ async function newSpace(withItem) {
 }
 
 /* ---------- item sheet ---------- */
+/* A pipeline's own words — "media: media lookup 401", "no WA_ACCESS_TOKEN: media id kept for later" — are for the log, not
+   the person. One plain line per kind of failure; anything unrecognised is said as "could not be read this time". */
+function plainError(err) {
+  if (!err) return null;
+  const e = String(err);
+  if (/WA_ACCESS_TOKEN|media lookup|media id|media:\s/i.test(e)) return 'the file could not be fetched from WhatsApp yet — Tekensa will try again';
+  if (/model unavailable|model down|429|rate/i.test(e)) return 'the reader was busy — Tekensa will try again';
+  if (/fetch|timeout|ENOTFOUND|ECONN|403|404|5\d\d/i.test(e)) return 'the page did not answer, so only the link is kept';
+  return 'could not be read this time — Tekensa will try again';
+}
+
 async function openItem(id) {
   const i = ITEMS.find((x) => x.id === id); if (!i) return; openId = id;
   if (!i.viewedAt) { i.viewedAt = new Date().toISOString(); sb.from('captures').update({ viewed_at: i.viewedAt }).eq('id', id).then(() => {}); }
@@ -354,7 +392,7 @@ async function openItem(id) {
     { l: i.correctedFields.includes('category') ? 'You filed it' : 'Organised', on: !inFlight && i.status !== 'failed' && !!i.cat && i.cat !== 'unsorted' || i.correctedFields.includes('category'), now: ['classifying', 'indexing'].includes(i.status) },
     { l: 'Findable', on: ['ready', 'limited'].includes(i.status) },
   ];
-  const lcNote = i.status === 'failed' ? esc(i.err ?? 'reading failed') : modelDown ? esc(i.err) + ' — Tekensa will try again' : i.status === 'limited' && i.err ? esc(i.err) : i.limited ? (i.type === 'reel' || i.type === 'post' || i.src === 'instagram' ? 'this platform does not let Tekensa read the content; the link is kept' : 'the page did not answer, so only the link is kept') : '';
+  const lcNote = i.status === 'failed' ? esc(plainError(i.err) ?? 'reading failed') : modelDown ? 'the reader was down — Tekensa will try again' : i.status === 'limited' && i.err ? esc(plainError(i.err)) : i.limited ? (i.type === 'reel' || i.type === 'post' || i.src === 'instagram' ? 'this platform does not let Tekensa read the content; the link is kept' : 'the page did not answer, so only the link is kept') : '';
   const lifecycle = `<div class="lc">${steps.map((st) => `<span class="${st.fail ? 'fail' : st.now ? 'now' : st.warn ? 'warn' : st.on ? 'done' : ''}"><i></i>${st.l}</span>`).join('')}${lcNote ? `<span class="lcnote">${lcNote}</span>` : ''}</div>`;
 
   // ---- canonical header: title, the facts the runner produced, the summary ----
@@ -374,7 +412,7 @@ async function openItem(id) {
     : perma ? `<div class="orig"><div class="o"><b>${i.form === 'post' ? 'Post' : 'Reel'} on Instagram${i.facets?.ig?.author ? ' · @' + esc(String(i.facets.ig.author)) : ''}</b><small>the ${i.form === 'post' ? 'post' : 'video'} stays on Instagram; its cover and its words are kept here</small></div><a class="btn y" href="${esc(perma)}" target="_blank" rel="noopener">Open ↗</a></div>`
     : i.text ? `<div class="orig words"><div class="o"><b>Your words</b><small>${esc(i.text)}</small></div></div>`
     : i.status === 'received' ? `<div class="orig"><div class="o"><b>Arriving</b><small>the original is being kept</small></div></div>`
-    : `<div class="orig"><div class="o"><b>Original not available</b><small>${esc(i.facets?.wa?.fetch_error ?? 'the file could not be fetched from the channel; the reference is kept')}</small></div></div>`;
+    : `<div class="orig"><div class="o"><b>Original not available</b><small>${esc(plainError(i.facets?.wa?.fetch_error) ?? 'the file could not be fetched from the channel; the reference is kept')}</small></div></div>`;
   const reader = has('pdf-text', 'extracted_text') ? 'from the document’s own text layer' : has('file-text', 'extracted_text') ? 'from the file' : has('readability', 'extracted_text') ? 'from the page' : has('model', 'extracted_text') ? 'read by the model' : null;
   const inside = i.ocr || i.extracted ? `<div class="sec"><h4>Text inside it${reader ? ` <span class="conf">· ${reader}</span>` : ''}</h4><p class="verbatim">${esc((i.ocr || i.extracted).slice(0, 1400))}${(i.ocr || i.extracted).length > 1400 ? '…' : ''}</p></div>` : '';
   const tr = has('transcriber', 'transcript') || has('whisper', 'transcript');
@@ -533,10 +571,11 @@ function parseAsk(q) {
   const said = WHEN.parse(q); const s = WHEN.without(q, said).toLowerCase(); const facets = []; let cands = ITEMS.slice();
   const space = SPACES.find((sp) => s.includes(sp.name.toLowerCase())); if (space) { cands = cands.filter((i) => i.spaces.includes(space.id)); facets.push('in your Space ' + space.name); }
   const srcKey = Object.keys(SRCLABEL).find((k) => s.includes(k)); if (srcKey) { cands = cands.filter((i) => i.src === srcKey); facets.push('from ' + SRCLABEL[srcKey]); }
-  const typeMap = { restaurant: ['place'], restaurants: ['place'], place: ['place'], places: ['place'], video: ['reel', 'video', 'tiktok'], videos: ['reel', 'video', 'tiktok'], reel: ['reel'], reels: ['reel'], document: ['doc', 'pdf'], documents: ['doc', 'pdf'], pdf: ['pdf'], pdfs: ['pdf'], photo: ['photo'], photos: ['photo'], voice: ['voice'], note: ['note'], notes: ['note'], article: ['article'], articles: ['article'], link: ['article', 'video', 'reel', 'post'], links: ['article', 'video', 'reel', 'post'] };
+  const typeMap = { restaurant: ['place'], restaurants: ['place'], place: ['place'], places: ['place'], video: ['reel', 'video', 'tiktok'], videos: ['reel', 'video', 'tiktok'], reel: ['reel', 'video'], reels: ['reel', 'video'], document: ['doc', 'pdf'], documents: ['doc', 'pdf'], pdf: ['pdf'], pdfs: ['pdf'], photo: ['photo'], photos: ['photo'], voice: ['voice'], note: ['note'], notes: ['note'], article: ['article'], articles: ['article'], link: ['article', 'video', 'reel', 'post'], links: ['article', 'video', 'reel', 'post'] };
   const words = s.replace(/[?.,!"]/g, ' ').split(/\s+/).filter(Boolean);
   const tk = words.find((w) => typeMap[w]); if (tk) { cands = cands.filter((i) => typeMap[tk].includes(i.type)); facets.push(tk); }
-  const catKey = Object.keys(CATS).find((c) => c !== 'unsorted' && s.includes(CATS[c].toLowerCase())); if (catKey && !tk) { cands = cands.filter((i) => i.cat === catKey); facets.push('in ' + CATS[catKey]); }
+  const catKey = Object.keys(CATS).find((c) => c !== 'unsorted' && s.includes(CATS[c].toLowerCase())); if (catKey) { // "reels about food": the kind and the category both narrow (3 Oct 2026)
+     cands = cands.filter((i) => i.cat === catKey); facets.push('in ' + CATS[catKey]); }
   // the words' date range and the tapped chip's, each a day range on captured_at; both narrow when both are there
   if (said) { cands = cands.filter((i) => WHEN.inRange(dayKey(i.date), said)); facets.push('from ' + said.label); }
   // THE CHIPS. What a person tapped narrows everything the words found; the words never override a chip.
@@ -550,6 +589,16 @@ function parseAsk(q) {
   const rest = words.filter((w) => !stop.has(w) && !typeMap[w] && !(space && space.name.toLowerCase().includes(w)) && !(srcKey && w.includes(srcKey)) && !(catKey && CATS[catKey].toLowerCase().includes(w)));
   return { cands, facets, rest, said, empty: !facets.length && !rest.length && !ASK.src && !ASK.form && !ASK.cat && !ASK.when };
 }
+// "You saved 2 reels about food", not "2 things reels": a form word that was asked for becomes the noun of the sentence
+const NOUN_FACETS = new Set(['reels', 'posts', 'photos', 'videos', 'voices', 'documents', 'articles', 'notes', 'places', 'reel', 'post', 'photo', 'video', 'voice', 'document', 'article', 'note', 'place', 'pdf', 'pdfs', 'link', 'links']);
+function noun(results, facets) {
+  const f = facets.find((x) => NOUN_FACETS.has(x));
+  const one = results.length === 1;
+  if (!f) return one ? 'thing' : 'things';
+  const base = f.replace(/s$/, '');
+  return one ? base : base === 'voice' ? 'voice notes' : base + 's';
+}
+const rest_ = (facets) => facets.filter((f) => !NOUN_FACETS.has(f)).join(', ');
 async function renderAsk(q) {
   const B = $('#askbody'); askSeq++;   // typing again drops any answer still on its way
   ASK.said = WHEN.parse(q); renderChips();
@@ -570,7 +619,7 @@ async function renderAsk(q) {
   const limited = results.filter((i) => i.limited).length;
   const kinds = {}; results.forEach((i) => { kinds[i.type] = (kinds[i.type] ?? 0) + 1; });
   const desc = Object.entries(kinds).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, n]) => `${n} ${k}${n > 1 ? 's' : ''}`).join(', ');
-  const ans = !results.length ? `<p class="answer">Nothing about that yet. If you sent it, it'll be here; if not, send it and forget about it.</p>` : `<p class="answer">You saved <span class="n">${results.length}</span> thing${results.length > 1 ? 's' : ''} ${facets.join(', ')}${results.length > 1 ? `, including ${desc}` : ''}.</p>${limited ? `<p class="honest">${limited} of these are links Tekensa couldn't read inside; they matched on your words.</p>` : ''}`;
+  const ans = !results.length ? `<p class="answer">Nothing about that yet. If you sent it, it'll be here; if not, send it and forget about it.</p>` : `<p class="answer">You saved <span class="n">${results.length}</span> ${noun(results, facets)}${rest_(facets) ? ' ' + rest_(facets) : ''}${results.length > 1 && !facets.some((f) => NOUN_FACETS.has(f)) ? `, including ${desc}` : ''}.</p>${limited ? `<p class="honest">${limited} of these are links Tekensa couldn't read inside; they matched on your words.</p>` : ''}`;
   B.innerHTML = `${ans}${results.length ? `<div class="askacts"><button class="y" data-ask-space>make a space from these</button></div>` : ''}<div class="grid">${results.map((i) => cardHtml(i, { grid: true })).join('')}</div>${installLine()}`;
   B._cands = results;
 }

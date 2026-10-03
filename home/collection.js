@@ -24,7 +24,8 @@
   }).join('');
 
   /* a link is followed only if it is http(s): a javascript: or data: URL kept as an item must never become a clickable href (security audit, 2026-09-25) */
-const safeUrl = (u) => { try { const x = new URL(String(u ?? ''), location.href); return (x.protocol === 'https:' || x.protocol === 'http:') ? x.href : ''; } catch { return ''; } };
+// an empty or null value is no link at all — never the page's own address (seen 3 Oct 2026: a DM'd note offered "Open ↗" to /home)
+const safeUrl = (u) => { const raw = String(u ?? '').trim(); if (!raw) return ''; try { const x = new URL(raw, location.href); return (x.protocol === 'https:' || x.protocol === 'http:') ? x.href : ''; } catch { return ''; } };
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const when = (iso) => {
     const d = new Date(iso);

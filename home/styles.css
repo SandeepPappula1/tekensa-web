@@ -611,3 +611,9 @@ textarea.note{width:100%;min-height:64px;background:var(--surf);border:1px solid
 .ag-flat{grid-template-columns:minmax(0,1fr)}.ag-flat .ag-row{min-width:0}.agenda .rail-h h2{white-space:nowrap}
 .ag-app{font-size:13px;color:var(--mute);margin:6px 0 0}.ag-app a{color:var(--ink);margin-left:6px}
 .ag-row{min-width:0;max-width:100%;box-sizing:border-box;overflow:hidden}.ag-main{width:100%}
+@media (min-width:761px){.ag-flat{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}}
+/* a note on the board is as tall as its words (seen with real rows, 3 Oct 2026: two-word notes were standing 300px tall) */
+.grid .card .p-note:not(.has-img){aspect-ratio:auto;min-height:0}
+.grid .card .p-note .txt{position:static;padding:18px 16px 22px;min-height:84px;display:block;font-size:16px}
+.grid .card .p-note .vig{display:none}
+.grid .card .p-note .txt{text-align:left;width:100%;justify-self:stretch;align-self:stretch}
