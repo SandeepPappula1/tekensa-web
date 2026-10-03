@@ -196,7 +196,7 @@
       <li>Files are in a private store, never public; a signed, expiring link is required to read one.</li>
       <li>Your Instagram id or WhatsApp number is looked up only through a keyed hash, so it does not appear in queries or logs.</li>
       <li>Messages from Instagram and WhatsApp are accepted only when their signature verifies; our own internal calls carry secrets that are never in the code.</li>
-      <li>Linking requires a one-time six-digit code sent down the channel itself, entered in a signed-in session, with a limit of ten wrong attempts an hour.</li>
+      <li>The link in a reply is a one-time key sent down the channel itself: 32 random bytes, stored only as a SHA-256 hash, spent on first use, expiring within a day (30 minutes for a first-time sender). The older six-digit code, where it is still offered, is limited to five guesses per code and ten wrong attempts an hour.</li>
       <li>Data is encrypted in transit and at rest by our hosting provider.</li>
       <li>Every action on your data leaves a record you can see on the item.</li>
     </ul>
