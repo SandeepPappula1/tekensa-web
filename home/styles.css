@@ -631,7 +631,7 @@ textarea.note{width:100%;min-height:64px;background:var(--surf);border:1px solid
 .grid .card.ed .ed-media .p-voice:not(.has-img){aspect-ratio:16/7;background:var(--paper2)!important}
 .grid .card.ed .ed-media .p-voice .bars i{background:var(--ink)}
 .grid .card.ed .ed-media .poster .vig{display:none}
-.grid .card.ed .flag{position:absolute;left:20px;top:20px}
+.grid .card.ed .flag{position:static;display:inline-block;margin:10px 2px 0;background:var(--paper2);color:var(--ink-dim);letter-spacing:.06em}.grid .card.ed .flag.bad{color:#8a3b2e}.grid .card.ed .flag+.ed-src{margin-top:8px}
 .grid .card.ed .ed-src{display:flex;align-items:baseline;gap:8px;margin:12px 2px 8px;font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:.01em;color:var(--ink);text-transform:none}
 .grid .card.ed .ed-src small{font-weight:500;font-size:11px;color:var(--ink-dim)}
 .grid .card.ed .ed-h{font-family:var(--editorial);font-weight:500;font-size:23px;line-height:1.1;letter-spacing:-.012em;color:var(--ink);margin:0 2px;text-wrap:pretty;font-optical-sizing:auto;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
