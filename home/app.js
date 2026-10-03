@@ -149,7 +149,67 @@ function posterHtml(item, big) {
 }
 function srcHtml(i) { return `<span class="src ${i.src}"><i></i>${SRCLABEL[i.src] ?? i.src}</span>`; }
 function ago(d) { const n = Math.round((Date.now() - d) / 864e5); if (n <= 0) return 'today'; if (n === 1) return 'yesterday'; if (n < 7) return n + ' days ago'; if (n < 30) return Math.round(n / 7) + ' wk ago'; return Math.round(n / 30) + ' mo ago'; }
+/* ---------- THE EDITORIAL TILE (founder, 4 Oct 2026: "can we create tiles like these", a news card from an Instagram
+   story) ---------- A paper card on the dark board: the picture on top, a small mark saying where it came from, then the
+   headline in a serif with the words that matter set in bold italic. The emphasis is not decoration — it is the thing the
+   reader found: the name, the amount, the date, a topic — so the eye lands on "₹2,140" or "Kudremukh" before anything
+   else. Minimal in front, everything behind: the facts, the reading and the evidence stay in the sheet. */
+// words that name the medium, never the subject: never worth the italic
+const NOT_EMPHASIS = new Set(['official', 'video', 'videos', 'screenshot', 'photo', 'image', 'reel', 'reels', 'wikipedia', 'character', 'minutes', 'remaster', 'youtube', 'instagram', 'tiktok', 'trending', 'viral', 'explained', 'things', 'thing']);
+function emphasise(title, i) {
+  const cands = [
+    ...i.entities.map((e) => e.name),
+    ...i.amounts.map((a) => a.raw),
+    ...i.dates.map((d) => d.raw),
+    ...i.tags.filter((t) => t.length >= 5 && !t.includes(' ') && !NOT_EMPHASIS.has(t.toLowerCase())),
+  ].map((c) => String(c ?? '').trim()).filter((c) => c.length >= 3 && !NOT_EMPHASIS.has(c.toLowerCase()));
+  cands.sort((a, b) => b.length - a.length);
+  const lower = title.toLowerCase();
+  const ranges = [];
+  for (const c of cands) {
+    if (ranges.length >= 2) break;
+    const at = lower.indexOf(c.toLowerCase());
+    if (at < 0) continue;
+    const end = at + c.length;
+    // a whole word or phrase, never the middle of one; never overlapping an emphasis already placed
+    if ((at > 0 && /\w/.test(title[at - 1])) || (end < title.length && /\w/.test(title[end]))) continue;
+    if (ranges.some(([s, e]) => at < e && end > s)) continue;
+    ranges.push([at, end]);
+  }
+  ranges.sort((a, b) => a[0] - b[0]);
+  let out = ''; let pos = 0;
+  for (const [s, e] of ranges) { out += esc(title.slice(pos, s)) + '<em>' + esc(title.slice(s, e)) + '</em>'; pos = e; }
+  return out + esc(title.slice(pos));
+}
+/** Where it came from, as a wordmark would say it: the site, the channel, the author. */
+function edSource(i) {
+  let host = null;
+  try { host = i.url ? new URL(i.url).hostname.replace(/^(www|m)\./, '') : null; } catch { /* no link */ }
+  const author = i.facets?.link?.author ?? i.facets?.ig?.author ?? null;
+  if (host && !/instagram\.com|youtube\.com|youtu\.be|tiktok\.com/.test(host)) return `<b>${esc(host)}</b>${author ? `<small>${esc(String(author))}</small>` : ''}`;
+  const label = SRCLABEL[i.src] ?? i.src;
+  if (i.src === 'web' || i.src === 'app') return `<b>${esc(label === 'Web' ? 'added by you' : 'from your phone')}</b>`;
+  return `<b>${esc(label)}</b>${author ? `<small>@${esc(String(author).replace(/^@/, ''))}</small>` : ''}`;
+}
+function edCardHtml(i) {
+  const t = i.type; const cls = t === 'pdf' ? 'doc' : t === 'reddit' ? 'article' : t;
+  const img = i.image ? `<img class="thumb" src="${esc(safeUrl(i.image))}" alt="">` : '';
+  let inner = '';
+  if (['reel', 'tiktok', 'video'].includes(t)) inner = `<span class="glyph">${PLAY}</span>`;
+  else if (t === 'pdf' || t === 'doc') inner = `<div class="page"><i></i><i></i><i></i><i></i><i></i><i></i></div>${t === 'pdf' ? '<span class="badge">PDF</span>' : ''}`;
+  else if (t === 'voice') inner = `<div class="bars">${Array.from({ length: 28 }, (_, k) => `<i style="height:${20 + (hash(i.id + ':' + k) % 80)}%"></i>`).join('')}</div>`;
+  // a note is its words: no picture band, the headline is the whole card
+  const media = t === 'note' ? '' : `<div class="ed-media"><div class="poster p-${cls}${img ? ' has-img' : ''}" style="background:${art(i)}">${img}${inner}</div></div>`;
+  const flag = i.status === 'failed' ? `<span class="flag bad">couldn’t read</span>` : i.status === 'limited' || i.limited ? `<span class="flag">needs another look</span>` : '';
+  const facts = factsOf(i).filter((x) => x.k === 'when' || x.k === 'amount').slice(0, 2).map((x) => esc(x.v)).join(' · ');
+  // a note's own words are its headline, with its date and amount set in the italic like any other thing's
+  const headline = emphasise(t === 'note' ? (i.text ?? i.title).replace(/\s+/g, ' ').trim().slice(0, 220) : i.title, i);
+  const sub = [facts, i.cat && i.cat !== 'unsorted' ? esc(CATS[i.cat] ?? i.cat) : '', ago(i.date) + (i.dup ? ' · sent again' : '')].filter(Boolean).join(' · ');
+  return `<button class="card ed ${t === 'note' ? 'words' : ''} ${i.status === 'failed' ? 'failed' : ''}" draggable="true" data-id="${i.id}" aria-label="${esc(i.title)}">${media}${flag}<div class="ed-src">${edSource(i)}</div><h3 class="ed-h">${headline}</h3><div class="ed-s">${sub}</div></button>`;
+}
+
 function cardHtml(i, opts = {}) {
+  if (opts.grid) return edCardHtml(i);
   const shape = SHAPE[i.type] ?? 'sq';
   // the card says only that another look is owed; the reason (a 401 from a media lookup, a model that was down) is for the sheet
   const flag = i.status === 'failed' ? `<span class="flag bad">couldn’t read</span>` : i.status === 'limited' || i.limited ? `<span class="flag">needs another look</span>` : '';
