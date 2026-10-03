@@ -14,7 +14,7 @@ function hash(s) { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCod
 const CATS = { travel: 'Travel', food: 'Food', shopping: 'Shopping', home: 'Home', kids: 'Kids', watch: 'Watch', fun: 'Fun', learn: 'Learn', docs: 'Documents', photos: 'Photos', voice: 'Voice', ideas: 'Ideas', events: 'Events', later: 'Saved for later', unsorted: 'Not sorted yet' };
 const SRCLABEL = { whatsapp: 'WhatsApp', instagram: 'Instagram', web: 'Web', app: 'App', youtube: 'YouTube', tiktok: 'TikTok', reddit: 'Reddit', spotify: 'Spotify' };
 
-let session = null, ITEMS = [], SPACES = [], CORR = new Map(), layout = 'rails', openId = null, signedUrls = new Map();
+let session = null, ITEMS = [], SPACES = [], CORR = new Map(), layout = 'board', openId = null, signedUrls = new Map();
 let addKey = null, refreshTimer = null, refreshRuns = 0;   // T09 idempotency key per attempt; T10 live refresh while anything is in flight
 // T10: a heartbeat every 20 s while the tab is visible: one tiny read (row count + latest change); a difference means
 // something arrived from another door (WhatsApp, another device) or finished, and the page reloads its own view.
@@ -116,12 +116,12 @@ function posterHtml(item, big) {
   else if (t === 'pdf' || t === 'doc') inner = `<div class="page"><i></i><i></i><i></i><i></i><i></i><i></i></div>${t === 'pdf' ? '<span class="badge">PDF</span>' : ''}`;
   else if (t === 'voice') { const bars = Array.from({ length: big ? 60 : 28 }, (_, k) => `<i style="height:${20 + (hash(item.id + ':' + k) % 80)}%"></i>`).join(''); inner = `<div class="bars">${bars}</div>`; }
   else if (t === 'article' || t === 'reddit') inner = `<div class="ed"><small>${t}</small><b>${esc(item.title)}</b></div>`;
-  else if (t === 'note') inner = `<div class="txt">${esc(item.title)}</div>`;
+  else if (t === 'note') inner = `<div class="txt">${esc((item.text ?? item.title ?? '').replace(/\s+/g, ' ').trim().slice(0, 180))}</div>`;
   else if (TITLED.has(t)) inner = ttl;
-  const img = item.image ? `<img class="thumb" src="${esc(safeUrl(item.image))}" alt="" loading="lazy">` : '';
+  const img = item.image ? `<img class="thumb" src="${esc(safeUrl(item.image))}" alt="">` : '';
   const state = item.status && !['ready', 'limited', 'failed'].includes(item.status) ? `<div class="state"><span class="dot"></span>${esc(STATE_WORDS[item.status] ?? item.status)}</div>` : '';
   const cls = t === 'pdf' ? 'doc' : t === 'reddit' ? 'article' : t;
-  return `<div class="poster p-${cls}" style="background:${art(item)}">${img}${inner}<div class="vig"></div>${state}</div>`;
+  return `<div class="poster p-${cls}${img ? ' has-img' : ''}" style="background:${art(item)}">${img}${inner}<div class="vig"></div>${state}</div>`;
 }
 function srcHtml(i) { return `<span class="src ${i.src}"><i></i>${SRCLABEL[i.src] ?? i.src}</span>`; }
 function ago(d) { const n = Math.round((Date.now() - d) / 864e5); if (n <= 0) return 'today'; if (n === 1) return 'yesterday'; if (n < 7) return n + ' days ago'; if (n < 30) return Math.round(n / 7) + ' wk ago'; return Math.round(n / 30) + ' mo ago'; }
@@ -130,7 +130,7 @@ function cardHtml(i, opts = {}) {
   const flag = i.status === 'failed' ? `<span class="flag bad">couldn’t read</span>` : i.status === 'limited' && i.err ? `<span class="flag">${esc(i.err.replace(/^model unavailable: /, 'model down: ').slice(0, 28))}</span>` : i.limited ? `<span class="flag">reference only</span>` : '';
   const facts = factsOf(i).filter((x) => x.k === 'when' || x.k === 'amount').slice(0, 2);   // a card shows the two facts a person scans for; names stay in the sheet
   const factLine = facts.length ? `<span class="f">${facts.map((x) => esc(x.v)).join(' · ')}</span>` : '';
-  return `<button class="card ${opts.grid ? '' : 's-' + shape} ${TITLED.has(i.type) ? 'titled' : ''} ${i.status === 'failed' ? 'failed' : ''}" draggable="true" data-id="${i.id}" aria-label="${esc(i.title)}">${posterHtml(i)}${flag}<div class="meta"><span class="t">${esc(i.title)}</span>${factLine}<span class="s">${i.cat && i.cat !== 'unsorted' ? `<span class="c">${esc(CATS[i.cat] ?? i.cat)}</span> · ` : ''}${srcHtml(i)} · ${ago(i.date)}${i.dup ? ' · sent again' : ''}</span></div></button>`;
+  return `<button class="card ${opts.grid ? '' : 's-' + shape} ${TITLED.has(i.type) && !opts.grid ? 'titled' : ''} ${i.status === 'failed' ? 'failed' : ''}" draggable="true" data-id="${i.id}" aria-label="${esc(i.title)}">${posterHtml(i)}${flag}<div class="meta"><span class="t">${esc(i.title)}</span>${factLine}<span class="s">${i.cat && i.cat !== 'unsorted' ? `<span class="c">${esc(CATS[i.cat] ?? i.cat)}</span> · ` : ''}${srcHtml(i)} · ${ago(i.date)}${i.dup ? ' · sent again' : ''}</span></div></button>`;
 }
 function rail(title, items, why, link) { if (!items.length) return ''; return `<section class="rail"><div class="rail-h"><h2>${esc(title)}</h2>${why ? `<span class="why">${esc(why)}</span>` : ''}${link ? `<a href="${link}">see all ›</a>` : ''}</div><div class="track">${items.slice(0, 14).map((i) => cardHtml(i)).join('')}</div></section>`; }
 // 5.2: a thing is a product when the reader named a product or a brand in it, or the link itself is a product page
@@ -159,7 +159,9 @@ function renderHome() {
   $('#greetsub').textContent = live.length ? `${live.length} thing${live.length > 1 ? 's' : ''} you didn't want to lose · organised for you.` : 'Send us anything you don’t want to lose.';
   const B = $('#home-body');
   if (!live.length) { B.innerHTML = `<div class="empty"><div><h1>Send us anything you don't want to lose.</h1><p>A link, a screenshot, a voice note, a PDF, a thought. Don't sort it. Just send it.</p><div class="ways"><div class="way"><b>+ add</b><small>Paste a link or text, or pick a file.</small></div><div class="way"><b>Instagram</b><small>DM anything to <a href="https://instagram.com/tekensa" target="_blank" rel="noopener">@tekensa</a>. The reply sends you a code; enter it at <a href="/login/?c=">tekensa.com/login</a> and it all lands here.</small></div><div class="way"><b>WhatsApp</b><small>Coming: the same, once the number is live.</small></div></div></div></div>`; return; }
-  if (layout === 'grid') { B.innerHTML = gridHtml(live); return; }
+  // THE BOARD (founder, 3 Oct 2026: "like Pinterest"): everything, newest first, as one wall of pictures with the index
+  // above it as the way to narrow. A reel shows its cover, a link its picture, a photo itself, a note its words.
+  if (layout === 'board') { B.innerHTML = browseHtml(live) + gridHtml(live); return; }
   const processing = live.filter((i) => !['ready', 'limited'].includes(i.status));
   // THE HOME IS AN INDEX FIRST (3 Oct 2026). It used to be up to thirty rows, one per shelf, most of them holding one
   // or two cards beside an empty screen, with the same thing repeated in six of them: a person looking for "that
@@ -641,7 +643,7 @@ async function hydrateThumbs() {
     if (!want.has(id)) want.set(id, []); want.get(id).push(p);
   }
   if (!want.size) return;
-  const put = (id, url) => { if (!url) return; for (const p of want.get(id) ?? []) { const img = document.createElement('img'); img.className = 'thumb'; img.alt = ''; img.loading = 'lazy'; img.src = url; p.prepend(img); p.closest('.hero')?.classList.remove('bare'); } };
+  const put = (id, url) => { if (!url) return; for (const p of want.get(id) ?? []) { const img = document.createElement('img'); img.className = 'thumb'; img.alt = ''; img.src = url; p.prepend(img); p.classList.add('has-img'); p.closest('.hero')?.classList.remove('bare'); } };
   const missing = [...want.keys()].filter((id) => !signedUrls.has(id));
   for (const id of want.keys()) if (signedUrls.has(id)) put(id, signedUrls.get(id));
   if (!missing.length) return;

@@ -566,3 +566,26 @@ textarea.note{width:100%;min-height:64px;background:var(--surf);border:1px solid
   .rail.day .rail-h h2{font-size:18px;line-height:1.2}
   .page-h h1{font-size:28px}
 }
+
+/* THE BOARD (founder, 3 Oct 2026: "organise it beautifully, like Pinterest"). The grid is a wall of columns, each
+   card as tall as its picture: a reel's cover stands upright, a link's picture lies wide, a photo keeps its own shape,
+   a note is its words on a tile. Columns are CSS columns, so the wall needs no script and reflows as covers arrive. */
+.grid{display:block;columns:6 180px;column-gap:14px}
+.grid .card{display:block;width:100%;break-inside:avoid;margin:0 0 18px}
+.grid .card .poster{aspect-ratio:auto;height:auto;min-height:120px}
+.grid .card .poster img.thumb{position:static;display:block;width:100%;height:auto;object-fit:contain}
+/* a tile with no picture yet keeps a shape of its own kind until one arrives */
+.grid .card .poster:not(.has-img){aspect-ratio:4/3}
+.grid .card .p-reel:not(.has-img),.grid .card .p-tiktok:not(.has-img){aspect-ratio:3/4}
+.grid .card .p-note:not(.has-img),.grid .card .p-doc:not(.has-img),.grid .card .p-product:not(.has-img){aspect-ratio:1}
+/* on the board the words sit under the picture, never over it, so a cover is never written across */
+.grid .card .poster .ttl{display:none}
+.grid .card .poster .glyph{left:10px;top:10px}
+.grid .card .meta{padding-top:8px}
+.grid .card .meta .t{display:-webkit-box;font-weight:600;font-size:14px}
+.grid .card .p-note .txt{position:absolute;inset:0;padding:16px;font-size:16px;line-height:1.3;align-items:flex-start;display:-webkit-box;-webkit-line-clamp:7;-webkit-box-orient:vertical;overflow:hidden}
+.grid .card .p-note+ .meta .t{display:none}
+@media (max-width:760px){
+  .grid,.grid.wide,.grid.vert{display:block;columns:2 150px;column-gap:10px}
+  .grid .card{margin:0 0 14px}
+}
