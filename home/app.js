@@ -161,7 +161,11 @@ function renderHome() {
   if (!live.length) { B.innerHTML = `<div class="empty"><div><h1>Send us anything you don't want to lose.</h1><p>A link, a screenshot, a voice note, a PDF, a thought. Don't sort it. Just send it.</p><div class="ways"><div class="way"><b>+ add</b><small>Paste a link or text, or pick a file.</small></div><div class="way"><b>Instagram</b><small>DM anything to <a href="https://instagram.com/tekensa" target="_blank" rel="noopener">@tekensa</a>. The reply sends you a code; enter it at <a href="/login/?c=">tekensa.com/login</a> and it all lands here.</small></div><div class="way"><b>WhatsApp</b><small>Coming: the same, once the number is live.</small></div></div></div></div>`; return; }
   // THE BOARD (founder, 3 Oct 2026: "like Pinterest"): everything, newest first, as one wall of pictures with the index
   // above it as the way to narrow. A reel shows its cover, a link its picture, a photo itself, a note its words.
-  if (layout === 'board') { B.innerHTML = browseHtml(live) + gridHtml(live); return; }
+  if (layout === 'board') {
+    const rows = agenda(live).filter((r) => !r.done);
+    const strip = rows.length ? `<section class="agenda strip"><div class="rail-h"><h2>coming up</h2><span class="why">${rows.filter((r) => r.overdue).length ? `${rows.filter((r) => r.overdue).length} overdue · ` : ''}from the dates in what you sent</span><a href="#/days">see all ›</a></div>${agendaHtml(rows, { limit: 6, flat: true })}</section>` : '';
+    B.innerHTML = strip + browseHtml(live) + gridHtml(live); return;
+  }
   const processing = live.filter((i) => !['ready', 'limited'].includes(i.status));
   // THE HOME IS AN INDEX FIRST (3 Oct 2026). It used to be up to thirty rows, one per shelf, most of them holding one
   // or two cards beside an empty screen, with the same thing repeated in six of them: a person looking for "that
@@ -214,12 +218,74 @@ function renderLists() {
   $('#lists-sub').textContent = groups.length ? `${n} thing${n === 1 ? '' : 's'} across ${groups.length} list${groups.length === 1 ? '' : 's'}, read from your own words. Nothing here was filed by hand.` : 'Nothing on a list yet. Send a trailer with "must watch", a cafe with "when we go", a product with "to buy": the words beside the share become the list.';
   $('#lists-body').innerHTML = groups.map(([l, items]) => `<section class="rail"><div class="rail-h"><h2>${esc(LIST_LABEL[l])}</h2><span class="why">${esc(LIST_WHY[l])} · ${items.length}</span><a href="#/shelf/list:${l}">See all →</a></div><div class="track">${items.slice(0, 14).map((i) => cardHtml(i)).join('')}</div></section>`).join('');
 }
+/* ---------- the day (the Walk's own feed, brought to the web — founder, 3 Oct 2026) ----------
+   Not when a thing was SENT but when it MATTERS: a bill's due day, an appointment, a ticket, a renewal — every date the
+   reader found in a thing, laid out as the app's board lays them out: overdue first, then today, then the days to come.
+   Each row is the thing, the day, and what kind of day it is; `done` ticks it off and it leaves the feed (kept on the
+   thing as facets.done_dates, so it is the same on every screen). The web has no 09:00 line — that is the app's. */
+const DATE_KIND_WORDS = [
+  [/\b(due|pay(?:ment)?\s+by|last\s+date|bill|emi|rent|invoice|outstanding|overdue)\b/i, 'due'],
+  [/\b(expir\w*|valid\s+(?:till|until|through)|renew\w*)\b/i, 'expires'],
+];
+const ON_WORDS = /\b(appointment|meeting|flight|train|bus|show|concert|match|wedding|birthday|anniversary|interview|exam|class|session|visit|check-?up)\b/i;
+function dateKindOf(i) {
+  const words = [i.title, i.text, i.caption, i.sum].filter(Boolean).join(' ');
+  if (ON_WORDS.test(words)) return 'on'; // a renewal appointment is an appointment
+  for (const [re, k] of DATE_KIND_WORDS) if (re.test(words)) return k;
+  return i.amounts.length ? 'due' : 'on';
+}
+const KIND_WORD = { due: 'due', expires: 'expires', on: 'on' };
+function doneDates(i) { return Array.isArray(i.facets?.done_dates) ? i.facets.done_dates : []; }
+function agenda(items, { back = 30, ahead = 90 } = {}) {
+  const today = dayKey(new Date());
+  const lo = new Date(today + 'T00:00:00+05:30'); lo.setDate(lo.getDate() - back); const hi = new Date(today + 'T00:00:00+05:30'); hi.setDate(hi.getDate() + ahead);
+  const from = dayKey(lo), to = dayKey(hi);
+  const rows = [];
+  for (const i of items) for (const d of i.dates) {
+    if (!d.iso || d.iso < from || d.iso > to) continue;
+    const done = doneDates(i).includes(d.iso);
+    // a past day is in the feed only while it is still open: a paid bill is over, an overdue one is not
+    if (d.iso < today && done) continue;
+    rows.push({ item: i, iso: d.iso, raw: d.raw, kind: dateKindOf(i), done, overdue: d.iso < today && !done, today: d.iso === today });
+  }
+  rows.sort((a, b) => a.iso.localeCompare(b.iso) || a.item.date - b.item.date);
+  return rows;
+}
+function agendaRowHtml(r) {
+  const amt = r.item.amounts[0] ? ` · ${esc(fmtAmount(r.item.amounts[0]))}` : '';
+  return `<div class="ag-row ${r.overdue ? 'overdue' : ''} ${r.done ? 'done' : ''}" data-id="${r.item.id}">
+    <button class="ag-tick" data-done="${r.item.id}" data-iso="${r.iso}" aria-label="${r.done ? 'not done' : 'done'}" title="${r.done ? 'mark not done' : 'done'}">${r.done ? '✓' : ''}</button>
+    <button class="ag-main" data-open="${r.item.id}"><span class="ag-t">${esc(r.item.title)}</span><span class="ag-s">${esc(KIND_WORD[r.kind])} ${esc(fmtDate(r.iso))}${r.overdue ? ' · overdue' : ''}${amt}${CATS[r.item.cat] ? ' · ' + esc(CATS[r.item.cat]) : ''}</span></button>
+  </div>`;
+}
+/** The day feed: overdue, today, then each day to come, each under its own heading, as the app's board draws them. */
+function agendaHtml(rows, { limit = null, flat = false } = {}) {
+  if (!rows.length) return '';
+  const shown = limit ? rows.slice(0, limit) : rows;
+  // the strip is one flat run of rows (each says its own day); the days page groups them under day headings
+  if (flat) return `<div class="ag-flat">${shown.map(agendaRowHtml).join('')}</div>` + (limit && rows.length > limit ? `<a class="ag-more" href="#/days">${rows.length - limit} more coming up ›</a>` : '');
+  const groups = new Map();
+  for (const r of shown) { const k = r.overdue ? 'overdue' : r.iso; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
+  return [...groups.entries()].map(([k, rs]) => `<section class="ag-day"><h3>${k === 'overdue' ? 'overdue' : esc(dayLabel(k))}</h3>${rs.map(agendaRowHtml).join('')}</section>`).join('') + (limit && rows.length > limit ? `<a class="ag-more" href="#/days">${rows.length - limit} more coming up ›</a>` : '');
+}
+async function toggleDone(id, iso) {
+  const i = ITEMS.find((x) => x.id === id); if (!i) return;
+  const had = doneDates(i);
+  const next = had.includes(iso) ? had.filter((d) => d !== iso) : [...had, iso];
+  const facets = { ...(i.facets ?? {}), done_dates: next };
+  const { error } = await sb.from('captures').update({ facets }).eq('id', id);
+  if (error) { toast('Could not save that: ' + error.message); return; }
+  i.facets = facets; route(); toast(next.includes(iso) ? 'Done' : 'Back on the day');
+}
+
 function renderDays() {
   const groups = new Map();
   for (const i of ITEMS) { const k = dayKey(i.date); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(i); }
   const keys = [...groups.keys()].sort().reverse();
   $('#days-sub').textContent = ITEMS.length ? `${ITEMS.length} thing${ITEMS.length === 1 ? '' : 's'} over ${keys.length} day${keys.length === 1 ? '' : 's'}. Every one of them is here.` : 'Nothing yet. Send something and it appears under today.';
-  $('#days-body').innerHTML = keys.map((k) => { const items = groups.get(k); const missing = items.filter((i) => !i.complete && ['ready', 'limited', 'failed'].includes(i.status)).length; return `<section class="rail day"><div class="rail-h"><h2>${esc(dayLabel(k))}</h2><span class="why">${items.length} thing${items.length === 1 ? '' : 's'}${missing ? ` · ${missing} still being completed` : ''}</span></div>${gridHtml(items)}</section>`; }).join('') || '<p class="empty-rail">Nothing yet.</p>';
+  const rows = agenda(ITEMS);
+  const feed = rows.length ? `<section class="agenda"><div class="rail-h"><h2>coming up</h2><span class="why">${rows.filter((r) => r.overdue).length ? `${rows.filter((r) => r.overdue).length} overdue · ` : ''}every date read off what you sent · done ticks it off</span></div>${agendaHtml(rows)}</section>` : `<section class="agenda"><div class="rail-h"><h2>coming up</h2><span class="why">nothing dated yet</span></div><p class="empty-rail">Send a bill, a ticket or an appointment and its day lands here.</p></section>`;
+  $('#days-body').innerHTML = feed + `<div class="rail-h" style="margin-top:28px"><h2>sent, day by day</h2></div>` + keys.map((k) => { const items = groups.get(k); const missing = items.filter((i) => !i.complete && ['ready', 'limited', 'failed'].includes(i.status)).length; return `<section class="rail day"><div class="rail-h"><h2>${esc(dayLabel(k))}</h2><span class="why">${items.length} thing${items.length === 1 ? '' : 's'}${missing ? ` · ${missing} still being completed` : ''}</span></div>${gridHtml(items)}</section>`; }).join('') || '<p class="empty-rail">Nothing yet.</p>';
 }
 function renderList(kind, key) {
   let items = ITEMS, title = 'Everything', sub = 'Every single thing you sent, newest first.';
@@ -661,6 +727,8 @@ new window.MutationObserver(() => { clearTimeout(thumbTimer); thumbTimer = setTi
 document.addEventListener('click', async (e) => {
   const t = e.target;
   const card = t.closest('.card'); if (card) { openItem(card.dataset.id); return; }
+  const tick = t.closest('[data-done]'); if (tick) { await toggleDone(tick.dataset.done, tick.dataset.iso); return; }
+  const agRow = t.closest('[data-open]'); if (agRow) { openItem(agRow.dataset.open); return; }
   if (t.id === 'sheetx' || t.id === 'scrim') { closeSheet(); return; }
   if (t.id === 'newspace') { await newSpace(); renderSpaces(); return; }
   if (t.closest('[data-newspace]') && openId) { await newSpace(openId); openItem(openId); return; }
