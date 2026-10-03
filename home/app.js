@@ -311,7 +311,7 @@ async function openItem(id) {
     : media && i.type === 'pdf' ? `<div class="orig"><div class="o"><b>Original document</b><small>kept exactly as sent</small></div><a class="btn y" href="${esc(media)}" target="_blank" rel="noopener">Open</a></div><iframe class="pdfview" src="${esc(media)}#view=FitH" title="${esc(i.title)}" loading="lazy"></iframe>`
     : media ? `<div class="orig"><div class="o"><b>Original file</b><small>kept exactly as sent</small></div><a class="btn y" href="${esc(media)}" target="_blank" rel="noopener">Open</a></div>`
     // a shared reel or post whose file Meta did not hand over: the words are here, the thing itself plays on Instagram
-    : perma ? `<div class="orig"><div class="o"><b>${i.form === 'post' ? 'Post' : 'Reel'} on Instagram</b><small>the ${i.form === 'post' ? 'post' : 'video'} stays on Instagram; its words are kept here</small></div><a class="btn y" href="${esc(perma)}" target="_blank" rel="noopener">Open ↗</a></div>`
+    : perma ? `<div class="orig"><div class="o"><b>${i.form === 'post' ? 'Post' : 'Reel'} on Instagram${i.facets?.ig?.author ? ' · @' + esc(String(i.facets.ig.author)) : ''}</b><small>the ${i.form === 'post' ? 'post' : 'video'} stays on Instagram; its cover and its words are kept here</small></div><a class="btn y" href="${esc(perma)}" target="_blank" rel="noopener">Open ↗</a></div>`
     : i.text ? `<div class="orig words"><div class="o"><b>Your words</b><small>${esc(i.text)}</small></div></div>`
     : i.status === 'received' ? `<div class="orig"><div class="o"><b>Arriving</b><small>the original is being kept</small></div></div>`
     : `<div class="orig"><div class="o"><b>Original not available</b><small>${esc(i.facets?.wa?.fetch_error ?? 'the file could not be fetched from the channel; the reference is kept')}</small></div></div>`;
@@ -630,21 +630,26 @@ window.addEventListener('hashchange', route);
    painted poster shows through). */
 let thumbTimer = null;
 async function hydrateThumbs() {
-  const posters = [...document.querySelectorAll('.card[data-id] .poster:not([data-th])')];
+  // the cards, and the open sheet's own poster (which has no card around it: the open item is `openId`)
+  const posters = [...document.querySelectorAll('.card[data-id] .poster:not([data-th]), #sheet .hero .poster:not([data-th])')];
   const want = new Map();
   for (const p of posters) {
     p.dataset.th = '1';
-    const id = p.closest('.card').dataset.id; const item = ITEMS.find((x) => x.id === id);
-    if (!item || item.type !== 'photo' || item.image || p.querySelector('img.thumb')) continue;
+    const id = p.closest('.card')?.dataset.id ?? openId; const item = ITEMS.find((x) => x.id === id);
+    // a photo has its own picture; a reel or post read from its cover (server, 3 Oct 2026) has that cover beside it
+    if (!item || !['photo', 'reel', 'post', 'video', 'tiktok'].includes(item.type) || item.image || p.querySelector('img.thumb')) continue;
     if (!want.has(id)) want.set(id, []); want.get(id).push(p);
   }
   if (!want.size) return;
-  const put = (id, url) => { if (!url) return; for (const p of want.get(id) ?? []) { const img = document.createElement('img'); img.className = 'thumb'; img.alt = ''; img.loading = 'lazy'; img.src = url; p.prepend(img); } };
+  const put = (id, url) => { if (!url) return; for (const p of want.get(id) ?? []) { const img = document.createElement('img'); img.className = 'thumb'; img.alt = ''; img.loading = 'lazy'; img.src = url; p.prepend(img); p.closest('.hero')?.classList.remove('bare'); } };
   const missing = [...want.keys()].filter((id) => !signedUrls.has(id));
   for (const id of want.keys()) if (signedUrls.has(id)) put(id, signedUrls.get(id));
   if (!missing.length) return;
-  const { data: rows } = await sb.from('capture_media').select('capture_id, object_path').in('capture_id', missing.slice(0, 100)).eq('role', 'original');
-  const byPath = new Map((rows ?? []).filter((r) => missing.includes(r.capture_id)).map((r) => [r.object_path, r.capture_id]));
+  const { data: rows } = await sb.from('capture_media').select('capture_id, object_path, role').in('capture_id', missing.slice(0, 100)).in('role', ['original', 'thumbnail']);
+  // a photo's picture is its original; anything else shows its thumbnail (a video's original is not a picture)
+  const pick = new Map();
+  for (const r of rows ?? []) { if (!missing.includes(r.capture_id)) continue; const t = ITEMS.find((x) => x.id === r.capture_id)?.type; const wantRole = t === 'photo' ? 'original' : 'thumbnail'; if (r.role === wantRole) pick.set(r.capture_id, r.object_path); }
+  const byPath = new Map([...pick.entries()].map(([id, path]) => [path, id]));
   if (!byPath.size) return;
   const { data: signed } = await sb.storage.from('dump-media').createSignedUrls([...byPath.keys()], 600);
   for (const s of signed ?? []) { const id = byPath.get(s.path); if (!id || !s.signedUrl) continue; signedUrls.set(id, s.signedUrl); put(id, s.signedUrl); }
