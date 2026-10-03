@@ -274,7 +274,11 @@ async function toggleDone(id, iso) {
   const next = had.includes(iso) ? had.filter((d) => d !== iso) : [...had, iso];
   // set_done_days (migration 0030) replaces the list atomically, so the reader's own writes to facets are never lost under ours;
   // the app's board pulls the same list, so the tick is one tick everywhere.
-  const { data, error } = await sb.rpc('set_done_days', { p_id: id, p_days: next });
+  let { data, error } = await sb.rpc('set_done_days', { p_id: id, p_days: next });
+  if (error && /set_done_days/.test(error.message)) {
+    // the door is not in this database yet (migration 0030 unapplied): the plain write, until it is
+    ({ error } = await sb.from('captures').update({ facets: { ...(i.facets ?? {}), done_dates: next } }).eq('id', id)); data = error ? null : true;
+  }
   if (error || data !== true) { toast('Could not save that' + (error ? ': ' + error.message : '')); return; }
   i.facets = { ...(i.facets ?? {}), done_dates: next }; route(); toast(next.includes(iso) ? 'Done' : 'Back on the day');
 }
