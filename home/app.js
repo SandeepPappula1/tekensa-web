@@ -240,6 +240,56 @@ function namesOf(items, max = 14) {
   const label = (k) => [...spelt.get(k).entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
   return [...count.entries()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, max).map(([k, n]) => [k, n, label(k)]);
 }
+/* ---------- LISTS OF WHAT WAS NAMED (founder, 6 Oct 2026: "the list of movies they shared, the places I planned on
+   travelling, restaurants in the city… could be anything") ---------- A person does not want the six reels that mention
+   films; they want the films. The reader gives every name a kind (film, place, restaurant, book, person, product…), so a
+   list is the names of one kind, each with how many things name it, when last, and what was named beside it — a cafe
+   beside its neighbourhood, a film beside the person who recommended it. Counted here; nothing is inferred. */
+const KIND_LABEL = { film: 'movies and shows', place: 'places', restaurant: 'places to eat', book: 'books', person: 'people', product: 'products', brand: 'brands', business: 'businesses', event: 'events' };
+function kindNames(items, kind) {
+  const by = new Map();
+  for (const i of items.filter((x) => !x.dup)) {
+    const seen = new Set();
+    for (const e of i.entities) {
+      if (e.kind !== kind) continue;
+      const k = nameKey(e.name); if (k.length < 2 || NOT_A_NAME.has(k) || seen.has(k)) continue; seen.add(k);
+      if (!by.has(k)) by.set(k, { key: k, label: String(e.name).trim(), items: [], beside: new Map() });
+      const row = by.get(k); row.items.push(i);
+      // what stands beside it: a place for anything that is somewhere, a person for anything someone recommended
+      for (const o of i.entities) { if (o === e || nameKey(o.name) === k) continue; if (o.kind === 'place' && kind !== 'place') row.beside.set(nameKey(o.name), String(o.name).trim()); }
+    }
+  }
+  return [...by.values()].sort((a, b) => b.items.length - a.items.length || Math.max(...b.items.map((i) => +i.date)) - Math.max(...a.items.map((i) => +i.date)) || a.label.localeCompare(b.label));
+}
+function namesListHtml(rows) {
+  const day = (d) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
+  return `<div class="namelist">${rows.map((r) => { const last = new Date(Math.max(...r.items.map((i) => +i.date))); const beside = [...r.beside.values()].slice(0, 2).join(', ');
+    return `<a class="nm" href="#/entity/${encodeURIComponent(r.label)}"><b>${esc(r.label)}</b><small>${r.items.length === 1 ? 'sent ' + esc(day(last)) : `${r.items.length} things · last ${esc(day(last))}`}${beside ? ' · ' + esc(beside) : ''}</small></a>`; }).join('')}</div>`;
+}
+/** A question that is a request for such a list: "movies I shared", "places I planned on travelling", "restaurants in Goa". Null when it is anything else. */
+const KIND_ASK = [
+  ['restaurant', /\b(restaurants?|caf[eé]s?|bars?|eater(?:y|ies)|bakery|bakeries|places? to eat|food (?:places?|spots?|joints?))\b/],
+  ['film', /\b(movies?|films?|shows?|series|web ?series|documentar(?:y|ies)|anime)\b/],
+  ['book', /\bbooks?\b/],
+  ['place', /\b(places?|destinations?|cities|countries|trips?|getaways?)\b/],
+  ['person', /\b(people|persons?|creators?)\b/],
+  ['product', /\b(products?|gadgets?)\b/],
+];
+const ASK_FILLER = new Set(['a', 'an', 'the', 'my', 'i', 'me', 'we', 'our', 'all', 'of', 'to', 'in', 'on', 'at', 'for', 'from', 'and', 'that', 'which', 'what', 'list', 'lists', 'show', 'give', 'get', 'find', 'see', 'did', 'do', 'have', 'had', 'shared', 'share', 'saved', 'save', 'sent', 'send', 'kept', 'tekensa', 'planned', 'plan', 'planning', 'want', 'wanted', 'wanna', 'go', 'going', 'visit', 'visiting', 'travel', 'traveling', 'travelling', 'watch', 'watching', 'read', 'try', 'eat', 'city', 'town', 'around', 'near', 'here', 'please', 'so', 'far', 'ever', 'things', 'thing', 'everything', 'about']);
+function namesAsk(q) {
+  const s = ' ' + q.toLowerCase().replace(/[?.!,]/g, ' ') + ' ';
+  const hit = KIND_ASK.find(([, re]) => re.test(s)); if (!hit) return null;
+  const kind = hit[0];
+  let rest = s.replace(hit[1], ' ');
+  // "in Goa": a place the person has named before narrows the list to the things that also name it
+  let where = null;
+  for (const r of kindNames(ITEMS, 'place')) { const at = rest.indexOf(' ' + r.label.toLowerCase() + ' '); if (at >= 0) { where = r; rest = rest.replace(' ' + r.label.toLowerCase() + ' ', ' '); break; } }
+  // anything left that is not filler means the question is about something else too: the ordinary search answers it
+  if (rest.split(/\s+/).filter(Boolean).some((w) => !ASK_FILLER.has(w))) return null;
+  const pool = where ? ITEMS.filter((i) => where.items.includes(i)) : ITEMS;
+  return { kind, where, rows: kindNames(pool, kind) };
+}
+
 /** What is known about a set of things, as one sentence of counted facts. */
 function knownLine(items) {
   if (!items.length) return '';
@@ -350,6 +400,7 @@ function browseHtml(live) {
     row('kind', [...Object.keys(FORM_WORD).map((f) => chip(FORM_WORD[f], onShelf('form:' + f), `#/shelf/form:${f}`)), chip('products', live.filter(isProduct).length, '#/products')]),
     row('about', Object.keys(CATS).filter((c) => c !== 'unsorted').map((c) => chip(CATS[c].toLowerCase(), live.filter((i) => i.cat === c).length, `#/c/${c}`))),
     row('topics', topicsOf(live).map(([k, n, label]) => chip(label, n, `#/t/${encodeURIComponent(k)}`))),
+    row('named', Object.keys(KIND_LABEL).map((k) => chip(KIND_LABEL[k], kindNames(live, k).length, `#/names/${k}`))),
     row('names', namesOf(live).map(([, n, label]) => chip(label, n, `#/entity/${encodeURIComponent(label)}`))),
     row('lists', Object.keys(LIST_LABEL).map((l) => chip(LIST_LABEL[l], onShelf('list:' + l), `#/shelf/list:${l}`))),
     // where it came from is only a way to narrow when there is more than one door in use
@@ -445,8 +496,16 @@ function renderList(kind, key) {
     items = ITEMS.filter((i) => namesEntity(i, name)); const shown = items.flatMap((i) => i.entities).find((e) => nameKey(e.name) === nameKey(name));
     title = shown ? shown.name : name; sub = `Everything you sent that names it: ${knownLine(items)}`;
   }
+  let lead = '';
+  if (kind === 'names') {
+    const rows = KIND_LABEL[key] ? kindNames(ITEMS, key) : [];
+    items = [...new Set(rows.flatMap((r) => r.items))].sort((a, b) => b.date - a.date);
+    title = KIND_LABEL[key] ? KIND_LABEL[key].charAt(0).toUpperCase() + KIND_LABEL[key].slice(1) : 'Names';
+    sub = rows.length ? `${rows.length} named in what you sent. Tap one for everything about it.` : 'None named yet in what you sent.';
+    lead = rows.length ? namesListHtml(rows) : '';
+  }
   $('#list-title').textContent = title; $('#list-sub').textContent = `${sub} ${items.length} thing${items.length === 1 ? '' : 's'}.`;
-  $('#list-body').innerHTML = items.length ? gridHtml(items) : '<p class="empty-rail">Nothing here yet.</p>';
+  $('#list-body').innerHTML = lead + (items.length ? gridHtml(items) : '<p class="empty-rail">Nothing here yet.</p>');
 }
 function renderSpaces() {
   $('#spaces-grid').innerHTML = SPACES.map((s) => { const items = ITEMS.filter((i) => i.spaces.includes(s.id)); return `<a class="space" href="#/s/${s.id}" data-space="${s.id}"><div class="mos">${items.slice(0, 3).map((i) => `<i style="background:${art(i)}"></i>`).join('')}${'<i style="background:var(--raise)"></i>'.repeat(Math.max(0, 3 - items.length))}</div><h3>${esc(s.name)}</h3><small>${items.length} things${s.note ? ' · ' + esc(s.note) : ''}</small></a>`; }).join('') + `<button class="space newbtn" id="newspace"><span style="font-size:28px;line-height:1">+</span>new space</button>`;
@@ -731,6 +790,16 @@ async function renderAsk(q) {
   const B = $('#askbody'); askSeq++;   // typing again drops any answer still on its way
   ASK.said = WHEN.parse(q); renderChips();
   if (!q.trim() && !Object.values(ASK).some(Boolean)) { B.innerHTML = `<p class="answer">Type a word, a #tag, a month, a year, or a question. Tekensa searches what you sent, what it read inside, and what you noted; the chips narrow it.</p><div class="tries">${TRIES.map((t) => `<button data-try="${esc(t)}">${esc(t)}</button>`).join('')}</div>`; return; }
+  // "movies I shared", "places I planned on travelling", "restaurants in Goa": the names, not the things that mention them
+  const wanted = namesAsk(q);
+  if (wanted) {
+    const label = KIND_LABEL[wanted.kind]; const things = [...new Set(wanted.rows.flatMap((r) => r.items))].sort((a, b) => b.date - a.date);
+    const inWhere = wanted.where ? ` in ${esc(wanted.where.label)}` : '';
+    B.innerHTML = wanted.rows.length
+      ? `<p class="answer"><span class="n">${wanted.rows.length}</span> ${esc(label)}${inWhere}, named in ${things.length} thing${things.length === 1 ? '' : 's'} you sent.</p>${namesListHtml(wanted.rows)}<div class="grid">${things.map((i) => cardHtml(i, { grid: true })).join('')}</div>${installLine()}`
+      : `<p class="answer">No ${esc(label)}${inWhere} named yet in what you sent. Tekensa lists a name once it is written or said in a thing; a reel it could not read inside has none.</p>${installLine()}`;
+    B._cands = things; return;
+  }
   const { cands, facets, rest, empty } = parseAsk(q);
   let results = cands;
   if (rest.length) {
@@ -847,7 +916,7 @@ function route() {
   if (!session) { location.replace('/login/'); return; }
   const p = (location.hash || '#/home').slice(2).split('/');
   if (p[0] === 'home' || p[0] === '') { renderHome(); show('v-home'); setNav('home'); }
-  else if (p[0] === 't' || p[0] === 'c' || p[0] === 'src' || p[0] === 'all' || p[0] === 'shelf' || p[0] === 'products' || p[0] === 'entity') { renderList(p[0], p[1]); show('v-list'); setNav('home'); }
+  else if (p[0] === 'names' || p[0] === 't' || p[0] === 'c' || p[0] === 'src' || p[0] === 'all' || p[0] === 'shelf' || p[0] === 'products' || p[0] === 'entity') { renderList(p[0], p[1]); show('v-list'); setNav('home'); }
   else if (p[0] === 'days') { renderDays(); show('v-days'); setNav('days'); }
   else if (p[0] === 'lists') { renderLists(); show('v-lists'); setNav('lists'); }
   else if (p[0] === 'spaces') { renderSpaces(); show('v-spaces'); setNav('spaces'); }
