@@ -284,6 +284,20 @@ function renderHome() {
 /* ---------- the index: every shelf that holds something, with its count, one tap away ---------- */
 const RAIL_MIN = 3;
 const FORM_WORD = { reel: 'reels', post: 'posts', story: 'stories', photo: 'photos', video: 'videos', article: 'links', document: 'documents', note: 'notes', voice: 'voice notes', place: 'places', product: 'product pages', music: 'music' };
+/* YOUR TOPICS (founder, 6 Oct 2026: "is it categorising by what is shared, or predefining the categories and limiting the
+   items?"). The fourteen categories are a fixed list the server must pick from, so a person who sends forty things about
+   system design gets one chip, "learn". The topics row is the other half: it is grown from THIS person's own things — a
+   word is a topic once two or more of their things carry it as a tag — so the index reflects what they actually send,
+   and nothing has to fit a shelf that was decided before they arrived. Words that only repeat a category, a kind or a
+   source are left out: they already have a chip. */
+function topicKey(t) { return String(t ?? '').toLowerCase().trim(); }
+function topicsOf(items, max = 14) {
+  const taken = new Set([...Object.keys(CATS), ...Object.values(CATS).map((c) => c.toLowerCase()), ...Object.keys(FORM_WORD), ...Object.values(FORM_WORD), ...Object.keys(SRCLABEL), 'instagram', 'video', 'videos', 'reel', 'photo', 'link', 'article', 'wikipedia', 'screenshot', 'trending', 'viral', 'fyp', 'form', 'cat', 'idea', 'official', 'minutes', 'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'sept', 'oct', 'nov', 'dec', 'january', 'february', 'march', 'april', 'june', 'july', 'august', 'september', 'october', 'november', 'december', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'today', 'tomorrow']);
+  const count = new Map();
+  // a thing sent twice is one thing: a resend must not make a topic by itself
+  for (const i of items.filter((x) => !x.dup)) for (const t of new Set(i.tags.map(topicKey))) { if (t.length < 3 || taken.has(t)) continue; count.set(t, (count.get(t) ?? 0) + 1); }
+  return [...count.entries()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, max);
+}
 function browseHtml(live) {
   const chip = (label, n, href) => (n ? `<a class="chip" href="${href}">${esc(label)}<b>${n}</b></a>` : '');
   const row = (label, chips) => { const c = chips.join(''); return c ? `<div class="brow"><span class="lbl">${label}</span>${c}</div>` : ''; };
@@ -292,6 +306,7 @@ function browseHtml(live) {
   const rows = [
     row('kind', [...Object.keys(FORM_WORD).map((f) => chip(FORM_WORD[f], onShelf('form:' + f), `#/shelf/form:${f}`)), chip('products', live.filter(isProduct).length, '#/products')]),
     row('about', Object.keys(CATS).filter((c) => c !== 'unsorted').map((c) => chip(CATS[c].toLowerCase(), live.filter((i) => i.cat === c).length, `#/c/${c}`))),
+    row('topics', topicsOf(live).map(([t, n]) => chip(t, n, `#/t/${encodeURIComponent(t)}`))),
     row('lists', Object.keys(LIST_LABEL).map((l) => chip(LIST_LABEL[l], onShelf('list:' + l), `#/shelf/list:${l}`))),
     // where it came from is only a way to narrow when there is more than one door in use
     sources.length > 1 ? row('from', sources.map((s) => chip((SRCLABEL[s] ?? s), live.filter((i) => i.src === s).length, `#/src/${encodeURIComponent(s)}`))) : '',
@@ -375,6 +390,7 @@ function renderList(kind, key) {
     if (key === 'incomplete') { items = ITEMS.filter((i) => !i.complete && ['ready', 'limited', 'failed'].includes(i.status)); title = 'Needs another look'; sub = 'Kept and listed, but the agents could not finish every note. Each one says what is missing; Tekensa asks again on its own.'; }
     else { let k; try { k = decodeURIComponent(key); } catch { location.hash = '#/home'; return; } items = ITEMS.filter((i) => i.shelves.includes(k)); title = k.startsWith('list:') ? (LIST_LABEL[k.slice(5)] ?? k) : k.startsWith('tag:') ? '#' + k.slice(4) : k.startsWith('form:') ? { reel: 'Reels', post: 'Posts', story: 'Stories', video: 'Videos', photo: 'Photos', voice: 'Voice notes', document: 'Documents', article: 'Articles', note: 'Notes', place: 'Places', product: 'Products', music: 'Music' }[k.slice(5)] ?? k : k; sub = 'A shelf the filer keeps. Nothing here was placed by hand.'; }
   }
+  if (kind === 't') { let k; try { k = topicKey(decodeURIComponent(key)); } catch { location.hash = '#/home'; return; } items = ITEMS.filter((i) => i.tags.some((t) => topicKey(t) === k)); title = k; sub = 'A topic of your own: every thing you sent that is about this. Nobody chose this shelf in advance.'; }
   if (kind === 'c') { items = ITEMS.filter((i) => i.cat === key); title = CATS[key] ?? key; sub = 'A collection Tekensa keeps for you. Nothing here was filed by hand.'; }
   if (kind === 'src') { items = ITEMS.filter((i) => i.src === key); title = 'From ' + (SRCLABEL[key] ?? key); sub = ''; }
   if (kind === 'products') { items = ITEMS.filter(isProduct); title = 'Products'; sub = 'Everything that names a product or a brand, as the reader found them.'; }
@@ -782,7 +798,7 @@ function route() {
   if (!session) { location.replace('/login/'); return; }
   const p = (location.hash || '#/home').slice(2).split('/');
   if (p[0] === 'home' || p[0] === '') { renderHome(); show('v-home'); setNav('home'); }
-  else if (p[0] === 'c' || p[0] === 'src' || p[0] === 'all' || p[0] === 'shelf' || p[0] === 'products' || p[0] === 'entity') { renderList(p[0], p[1]); show('v-list'); setNav('home'); }
+  else if (p[0] === 't' || p[0] === 'c' || p[0] === 'src' || p[0] === 'all' || p[0] === 'shelf' || p[0] === 'products' || p[0] === 'entity') { renderList(p[0], p[1]); show('v-list'); setNav('home'); }
   else if (p[0] === 'days') { renderDays(); show('v-days'); setNav('days'); }
   else if (p[0] === 'lists') { renderLists(); show('v-lists'); setNav('lists'); }
   else if (p[0] === 'spaces') { renderSpaces(); show('v-spaces'); setNav('spaces'); }
