@@ -220,7 +220,42 @@ function cardHtml(i, opts = {}) {
 function rail(title, items, why, link) { if (!items.length) return ''; return `<section class="rail"><div class="rail-h"><h2>${esc(title)}</h2>${why ? `<span class="why">${esc(why)}</span>` : ''}${link ? `<a href="${link}">see all ›</a>` : ''}</div><div class="track">${items.slice(0, 14).map((i) => cardHtml(i)).join('')}</div></section>`; }
 // 5.2: a thing is a product when the reader named a product or a brand in it, or the link itself is a product page
 const isProduct = (i) => i.form === 'product' || i.type === 'product' || i.entities.some((e) => e.kind === 'product' || e.kind === 'brand');
-const namesEntity = (i, name) => i.entities.some((e) => String(e.name ?? '').toLowerCase() === name);
+// A name is one name however it was written ("Sleek Modular", "sleek-modular", "SleekModular"): compared by its letters and
+// digits only. The plural rule of topics is NOT applied — "Paris" is not "Pari".
+const nameKey = (n) => String(n ?? '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+const namesEntity = (i, name) => { const k = nameKey(name); return k.length > 0 && i.entities.some((e) => nameKey(e.name) === k); };
+
+/* ---------- THE NAMES (6 Oct 2026) ---------- The matrix of the earlier versions was one row per thing and one column per
+   name found in it, so "what do you know about BESCOM?" was a read down a column. A capture already carries its names;
+   this is that column, on the web: every name two or more things share is a chip in the index, and its page says what
+   is KNOWN — how many things, from when to when, what they add up to, what is still to come — counted here in code, with
+   no model asked and nothing inferred (plan of record, 06-memory.md: compute, never read; a fact, never a verdict). */
+const NOT_A_NAME = new Set(['instagram', 'whatsapp', 'youtube', 'tiktok', 'facebook', 'google', 'googlemaps', 'wikipedia', 'reddit', 'tekensa']);
+function namesOf(items, max = 14) {
+  const count = new Map(); const spelt = new Map();
+  for (const i of items.filter((x) => !x.dup)) {
+    const mine = new Map(); for (const e of i.entities) { const k = nameKey(e.name); if (k.length >= 3 && !NOT_A_NAME.has(k) && !mine.has(k)) mine.set(k, String(e.name).trim()); }
+    for (const [k, raw] of mine) { count.set(k, (count.get(k) ?? 0) + 1); if (!spelt.has(k)) spelt.set(k, new Map()); const s = spelt.get(k); s.set(raw, (s.get(raw) ?? 0) + 1); }
+  }
+  const label = (k) => [...spelt.get(k).entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
+  return [...count.entries()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, max).map(([k, n]) => [k, n, label(k)]);
+}
+/** What is known about a set of things, as one sentence of counted facts. */
+function knownLine(items) {
+  if (!items.length) return '';
+  const sent = items.map((i) => i.date).sort((a, b) => a - b);
+  const day = (d) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined, timeZone: 'Asia/Kolkata' });
+  const parts = [items.length === 1 ? 'sent once, on ' + day(sent[0]) : `first on ${day(sent[0])}, last on ${day(sent[sent.length - 1])}`];
+  // a total only when every figure is in one currency, and the same thing sent twice is counted once
+  const amounts = items.filter((i) => !i.dup).flatMap((i) => i.amounts.slice(0, 1));
+  const currencies = new Set(amounts.map((a) => a.currency));
+  if (amounts.length >= 2 && currencies.size === 1) parts.push(`${amounts.length} figures adding up to ${fmtAmount({ currency: amounts[0].currency, value: amounts.reduce((s, a) => s + a.value, 0), raw: '' })}`);
+  else if (amounts.length === 1) parts.push(`one figure, ${fmtAmount(amounts[0])}`);
+  const today = dayKey(new Date());
+  const next = items.flatMap((i) => i.dates.map((d) => d.iso)).filter((iso) => iso && iso >= today).sort()[0];
+  if (next) parts.push(`next date ${fmtDate(next)}`);
+  return parts.join(' · ') + '.';
+}
 /* ---------- 3.7: one quiet line about the app under results; dismissed once, never shown again ---------- */
 const INSTALL_KEY = 'tekensa.install.dismissed';
 function installDismissed() { try { return localStorage.getItem(INSTALL_KEY) === '1'; } catch { return false; } }
@@ -315,6 +350,7 @@ function browseHtml(live) {
     row('kind', [...Object.keys(FORM_WORD).map((f) => chip(FORM_WORD[f], onShelf('form:' + f), `#/shelf/form:${f}`)), chip('products', live.filter(isProduct).length, '#/products')]),
     row('about', Object.keys(CATS).filter((c) => c !== 'unsorted').map((c) => chip(CATS[c].toLowerCase(), live.filter((i) => i.cat === c).length, `#/c/${c}`))),
     row('topics', topicsOf(live).map(([k, n, label]) => chip(label, n, `#/t/${encodeURIComponent(k)}`))),
+    row('names', namesOf(live).map(([, n, label]) => chip(label, n, `#/entity/${encodeURIComponent(label)}`))),
     row('lists', Object.keys(LIST_LABEL).map((l) => chip(LIST_LABEL[l], onShelf('list:' + l), `#/shelf/list:${l}`))),
     // where it came from is only a way to narrow when there is more than one door in use
     sources.length > 1 ? row('from', sources.map((s) => chip((SRCLABEL[s] ?? s), live.filter((i) => i.src === s).length, `#/src/${encodeURIComponent(s)}`))) : '',
@@ -398,7 +434,7 @@ function renderList(kind, key) {
     if (key === 'incomplete') { items = ITEMS.filter((i) => !i.complete && ['ready', 'limited', 'failed'].includes(i.status)); title = 'Needs another look'; sub = 'Kept and listed, but the agents could not finish every note. Each one says what is missing; Tekensa asks again on its own.'; }
     else { let k; try { k = decodeURIComponent(key); } catch { location.hash = '#/home'; return; } items = ITEMS.filter((i) => i.shelves.includes(k)); title = k.startsWith('list:') ? (LIST_LABEL[k.slice(5)] ?? k) : k.startsWith('tag:') ? '#' + k.slice(4) : k.startsWith('form:') ? { reel: 'Reels', post: 'Posts', story: 'Stories', video: 'Videos', photo: 'Photos', voice: 'Voice notes', document: 'Documents', article: 'Articles', note: 'Notes', place: 'Places', product: 'Products', music: 'Music' }[k.slice(5)] ?? k : k; sub = 'A shelf the filer keeps. Nothing here was placed by hand.'; }
   }
-  if (kind === 't') { let k; try { k = topicKey(decodeURIComponent(key)); } catch { location.hash = '#/home'; return; } items = ITEMS.filter((i) => i.tags.some((t) => topicKey(t) === k)); title = (topicsOf(ITEMS, 999).find((x) => x[0] === k) ?? [k, 0, k])[2]; sub = 'A topic of your own: every thing you sent that is about this. Nobody chose this shelf in advance.'; }
+  if (kind === 't') { let k; try { k = topicKey(decodeURIComponent(key)); } catch { location.hash = '#/home'; return; } items = ITEMS.filter((i) => i.tags.some((t) => topicKey(t) === k)); title = (topicsOf(ITEMS, 999).find((x) => x[0] === k) ?? [k, 0, k])[2]; sub = `A topic of your own: ${knownLine(items)}`; }
   if (kind === 'c') { items = ITEMS.filter((i) => i.cat === key); title = CATS[key] ?? key; sub = 'A collection Tekensa keeps for you. Nothing here was filed by hand.'; }
   if (kind === 'src') { items = ITEMS.filter((i) => i.src === key); title = 'From ' + (SRCLABEL[key] ?? key); sub = ''; }
   if (kind === 'products') { items = ITEMS.filter(isProduct); title = 'Products'; sub = 'Everything that names a product or a brand, as the reader found them.'; }
@@ -406,8 +442,8 @@ function renderList(kind, key) {
     // 5.2: a shelf for one named product or brand; the name comes from the address and is only ever compared, never rendered raw
     let name; try { name = decodeURIComponent(key ?? '').trim().toLowerCase(); } catch { location.hash = '#/home'; return; }
     if (!name) { location.hash = '#/home'; return; }
-    items = ITEMS.filter((i) => namesEntity(i, name)); const shown = items.flatMap((i) => i.entities).find((e) => String(e.name ?? '').toLowerCase() === name);
-    title = shown ? shown.name : name; sub = 'Everything you sent that names it.';
+    items = ITEMS.filter((i) => namesEntity(i, name)); const shown = items.flatMap((i) => i.entities).find((e) => nameKey(e.name) === nameKey(name));
+    title = shown ? shown.name : name; sub = `Everything you sent that names it: ${knownLine(items)}`;
   }
   $('#list-title').textContent = title; $('#list-sub').textContent = `${sub} ${items.length} thing${items.length === 1 ? '' : 's'}.`;
   $('#list-body').innerHTML = items.length ? gridHtml(items) : '<p class="empty-rail">Nothing here yet.</p>';
@@ -560,7 +596,7 @@ async function openItem(id) {
   const maybe = !decided && i.cat === 'unsorted' && typeof i.facets?.maybe === 'string' && CATS[i.facets.maybe] ? i.facets.maybe : null;
   const organisation = `<div class="sec"><h4><span class="truth ${decided ? 'you' : 'ai'}">${decided ? 'You decided' : maybe ? 'Tekensa was not sure' : 'Tekensa filed'}</span> ${decided ? 'this stays where you put it, and the next thing like it goes there too' : maybe ? `maybe ${esc(CATS[maybe])}? tap to say` : 'tap to move it'}</h4>
       <div class="corr">${Object.keys(CATS).map((c) => `<button class="${i.cat === c ? 'on' : ''} ${maybe === c ? 'maybe' : ''}" data-setcat="${c}">${CATS[c]}</button>`).join('')}</div>
-      <div class="tags" style="margin-top:10px">${i.hashtags.map((h) => `<a class="tag" href="#/shelf/tag:${encodeURIComponent(h)}" title="a hashtag you sent">#${esc(h)}</a>`).join('')}${i.tags.filter((t) => !i.hashtags.includes(t)).map((t) => `<span class="tag">${esc(t)}<span class="x" data-rmtag="${esc(t)}" title="remove">✕</span></span>`).join('')}${i.ents.map((e) => (e[1] === 'product' || e[1] === 'brand') ? `<a class="tag ent" href="#/entity/${encodeURIComponent(e[0])}" title="${esc(e[1])} · everything that names it" data-ent>${esc(e[0])} ›</a>` : `<span class="tag ent" title="${esc(e[1])}">${esc(e[0])}</span>`).join('')}<span class="addtag"><input id="addtag-in" placeholder="add a word"><button class="tag" id="addtag-go">add</button></span></div></div>
+      <div class="tags" style="margin-top:10px">${i.hashtags.map((h) => `<a class="tag" href="#/shelf/tag:${encodeURIComponent(h)}" title="a hashtag you sent">#${esc(h)}</a>`).join('')}${i.tags.filter((t) => !i.hashtags.includes(t)).map((t) => `<span class="tag">${esc(t)}<span class="x" data-rmtag="${esc(t)}" title="remove">✕</span></span>`).join('')}${i.ents.map((e) => `<a class="tag ent" href="#/entity/${encodeURIComponent(e[0])}" title="${esc(e[1])} · everything that names it" data-ent>${esc(e[0])} ›</a>`).join('')}<span class="addtag"><input id="addtag-in" placeholder="add a word"><button class="tag" id="addtag-go">add</button></span></div></div>
     <div class="sec"><h4><span class="truth you">Yours</span> Spaces</h4><div class="spacerow">${SPACES.map((s) => `<button class="${i.spaces.includes(s.id) ? 'in' : ''}" data-tog="${s.id}">${i.spaces.includes(s.id) ? '✓ ' : '+ '}${esc(s.name)}</button>`).join('')}<button data-newspace>+ New Space</button></div></div>${connectedHtml}<div class="sec" id="related" hidden></div>`;
 
   const hero = i.type === 'photo' && media ? `<div class="hero"><img class="thumb" src="${esc(media)}" alt=""><button class="x" id="sheetx" aria-label="Close">✕</button></div>` : `<div class="hero ${SHAPE[i.type] ?? 'sq'}${i.image || media ? '' : ' bare'}" style="--hero-bg:${art(i)}">${posterHtml({ ...i, status: null }, true)}<button class="x" id="sheetx" aria-label="Close">✕</button></div>`;
