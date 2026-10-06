@@ -12,7 +12,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('on'), 2200); }
 function hash(s) { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
 
-const CATS = { travel: 'Travel', food: 'Food', shopping: 'Shopping', home: 'Home', kids: 'Kids', watch: 'Watch', fun: 'Fun', learn: 'Learn', docs: 'Documents', photos: 'Photos', voice: 'Voice', ideas: 'Ideas', events: 'Events', later: 'Saved for later', unsorted: 'Not sorted yet' };
+const CATS = { travel: 'Travel', food: 'Food', shopping: 'Shopping', home: 'Home', kids: 'Kids', watch: 'Watch', fun: 'Fun', learn: 'Learn', docs: 'Documents', money: 'Money', photos: 'Photos', voice: 'Voice', ideas: 'Ideas', events: 'Events', later: 'Saved for later', unsorted: 'Not sorted yet' };
 const SRCLABEL = { whatsapp: 'WhatsApp', instagram: 'Instagram', web: 'Web', app: 'App', youtube: 'YouTube', tiktok: 'TikTok', reddit: 'Reddit', spotify: 'Spotify' };
 
 let session = null, ITEMS = [], SPACES = [], CORR = new Map(), layout = 'board', openId = null, signedUrls = new Map();
@@ -290,13 +290,21 @@ const FORM_WORD = { reel: 'reels', post: 'posts', story: 'stories', photo: 'phot
    word is a topic once two or more of their things carry it as a tag — so the index reflects what they actually send,
    and nothing has to fit a shelf that was decided before they arrived. Words that only repeat a category, a kind or a
    source are left out: they already have a chip. */
-function topicKey(t) { return String(t ?? '').toLowerCase().trim(); }
+// One topic however it was spelt (6 Oct 2026): "system design", "systemdesign" and "System-Design" are the same shelf, and
+// so are "recipe" and "recipes". The key drops everything but letters and digits, and a plain plural; the chip shows
+// the spelling the person's things use most, preferring the one with spaces in it because that is how it is read.
+function topicKey(t) { const k = String(t ?? '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ''); return k.length > 4 && k.endsWith('s') && !k.endsWith('ss') ? k.slice(0, -1) : k; }
 function topicsOf(items, max = 14) {
   const taken = new Set([...Object.keys(CATS), ...Object.values(CATS).map((c) => c.toLowerCase()), ...Object.keys(FORM_WORD), ...Object.values(FORM_WORD), ...Object.keys(SRCLABEL), 'instagram', 'video', 'videos', 'reel', 'photo', 'link', 'article', 'wikipedia', 'screenshot', 'trending', 'viral', 'fyp', 'form', 'cat', 'idea', 'official', 'minutes', 'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'sept', 'oct', 'nov', 'dec', 'january', 'february', 'march', 'april', 'june', 'july', 'august', 'september', 'october', 'november', 'december', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'today', 'tomorrow']);
-  const count = new Map();
+  const count = new Map(); const spelt = new Map();
   // a thing sent twice is one thing: a resend must not make a topic by itself
-  for (const i of items.filter((x) => !x.dup)) for (const t of new Set(i.tags.map(topicKey))) { if (t.length < 3 || taken.has(t)) continue; count.set(t, (count.get(t) ?? 0) + 1); }
-  return [...count.entries()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, max);
+  for (const i of items.filter((x) => !x.dup)) {
+    const mine = new Map(); for (const raw of i.tags) { const k = topicKey(raw); if (k.length >= 3 && !taken.has(k) && !taken.has(String(raw).toLowerCase().trim()) && !mine.has(k)) mine.set(k, String(raw).toLowerCase().trim()); }
+    for (const [k, raw] of mine) { count.set(k, (count.get(k) ?? 0) + 1); if (!spelt.has(k)) spelt.set(k, new Map()); const s = spelt.get(k); s.set(raw, (s.get(raw) ?? 0) + 1); }
+  }
+  const label = (k) => [...spelt.get(k).entries()].sort((a, b) => (b[0].includes(' ') ? 1 : 0) - (a[0].includes(' ') ? 1 : 0) || b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
+  // [key, count, label]: the key is what the route carries, the label is what the chip says
+  return [...count.entries()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, max).map(([k, n]) => [k, n, label(k)]);
 }
 function browseHtml(live) {
   const chip = (label, n, href) => (n ? `<a class="chip" href="${href}">${esc(label)}<b>${n}</b></a>` : '');
@@ -306,7 +314,7 @@ function browseHtml(live) {
   const rows = [
     row('kind', [...Object.keys(FORM_WORD).map((f) => chip(FORM_WORD[f], onShelf('form:' + f), `#/shelf/form:${f}`)), chip('products', live.filter(isProduct).length, '#/products')]),
     row('about', Object.keys(CATS).filter((c) => c !== 'unsorted').map((c) => chip(CATS[c].toLowerCase(), live.filter((i) => i.cat === c).length, `#/c/${c}`))),
-    row('topics', topicsOf(live).map(([t, n]) => chip(t, n, `#/t/${encodeURIComponent(t)}`))),
+    row('topics', topicsOf(live).map(([k, n, label]) => chip(label, n, `#/t/${encodeURIComponent(k)}`))),
     row('lists', Object.keys(LIST_LABEL).map((l) => chip(LIST_LABEL[l], onShelf('list:' + l), `#/shelf/list:${l}`))),
     // where it came from is only a way to narrow when there is more than one door in use
     sources.length > 1 ? row('from', sources.map((s) => chip((SRCLABEL[s] ?? s), live.filter((i) => i.src === s).length, `#/src/${encodeURIComponent(s)}`))) : '',
@@ -390,7 +398,7 @@ function renderList(kind, key) {
     if (key === 'incomplete') { items = ITEMS.filter((i) => !i.complete && ['ready', 'limited', 'failed'].includes(i.status)); title = 'Needs another look'; sub = 'Kept and listed, but the agents could not finish every note. Each one says what is missing; Tekensa asks again on its own.'; }
     else { let k; try { k = decodeURIComponent(key); } catch { location.hash = '#/home'; return; } items = ITEMS.filter((i) => i.shelves.includes(k)); title = k.startsWith('list:') ? (LIST_LABEL[k.slice(5)] ?? k) : k.startsWith('tag:') ? '#' + k.slice(4) : k.startsWith('form:') ? { reel: 'Reels', post: 'Posts', story: 'Stories', video: 'Videos', photo: 'Photos', voice: 'Voice notes', document: 'Documents', article: 'Articles', note: 'Notes', place: 'Places', product: 'Products', music: 'Music' }[k.slice(5)] ?? k : k; sub = 'A shelf the filer keeps. Nothing here was placed by hand.'; }
   }
-  if (kind === 't') { let k; try { k = topicKey(decodeURIComponent(key)); } catch { location.hash = '#/home'; return; } items = ITEMS.filter((i) => i.tags.some((t) => topicKey(t) === k)); title = k; sub = 'A topic of your own: every thing you sent that is about this. Nobody chose this shelf in advance.'; }
+  if (kind === 't') { let k; try { k = topicKey(decodeURIComponent(key)); } catch { location.hash = '#/home'; return; } items = ITEMS.filter((i) => i.tags.some((t) => topicKey(t) === k)); title = (topicsOf(ITEMS, 999).find((x) => x[0] === k) ?? [k, 0, k])[2]; sub = 'A topic of your own: every thing you sent that is about this. Nobody chose this shelf in advance.'; }
   if (kind === 'c') { items = ITEMS.filter((i) => i.cat === key); title = CATS[key] ?? key; sub = 'A collection Tekensa keeps for you. Nothing here was filed by hand.'; }
   if (kind === 'src') { items = ITEMS.filter((i) => i.src === key); title = 'From ' + (SRCLABEL[key] ?? key); sub = ''; }
   if (kind === 'products') { items = ITEMS.filter(isProduct); title = 'Products'; sub = 'Everything that names a product or a brand, as the reader found them.'; }
@@ -545,8 +553,13 @@ async function openItem(id) {
     return why.length ? { o, why: why[0], w: why.length + (why[0].startsWith('the same') ? 10 : 0) } : null;
   }).filter(Boolean).sort((a, b) => b.w - a.w).slice(0, 8);
   const connectedHtml = connected.length ? `<div class="sec"><h4><span class="truth ob">Connected</span> by what they share</h4><div class="track">${connected.map(({ o, why }) => cardHtml(o).replace('<div class="meta">', `<div class="meta"><span class="why">${esc(why)}</span>`)).join('')}</div></div>` : '';
-  const organisation = `<div class="sec"><h4><span class="truth ${i.correctedFields.includes('category') ? 'you' : 'ai'}">${i.correctedFields.includes('category') ? 'You decided' : 'Tekensa filed'}</span> ${i.correctedFields.includes('category') ? 'this stays where you put it' : 'tap to move it'}</h4>
-      <div class="corr">${Object.keys(CATS).map((c) => `<button class="${i.cat === c ? 'on' : ''}" data-setcat="${c}">${CATS[c]}</button>`).join('')}</div>
+  // NOT SURE IS AN ANSWER (server, 6 Oct 2026): on a near tie the filer leaves a thing unsorted and keeps its guess as
+  // facets.maybe. The sheet says so in one line and marks the guess, so confirming it is one tap — and that tap is a
+  // correction, which the filer learns from for the next thing like this one (learned.ts).
+  const decided = i.correctedFields.includes('category');
+  const maybe = !decided && i.cat === 'unsorted' && typeof i.facets?.maybe === 'string' && CATS[i.facets.maybe] ? i.facets.maybe : null;
+  const organisation = `<div class="sec"><h4><span class="truth ${decided ? 'you' : 'ai'}">${decided ? 'You decided' : maybe ? 'Tekensa was not sure' : 'Tekensa filed'}</span> ${decided ? 'this stays where you put it, and the next thing like it goes there too' : maybe ? `maybe ${esc(CATS[maybe])}? tap to say` : 'tap to move it'}</h4>
+      <div class="corr">${Object.keys(CATS).map((c) => `<button class="${i.cat === c ? 'on' : ''} ${maybe === c ? 'maybe' : ''}" data-setcat="${c}">${CATS[c]}</button>`).join('')}</div>
       <div class="tags" style="margin-top:10px">${i.hashtags.map((h) => `<a class="tag" href="#/shelf/tag:${encodeURIComponent(h)}" title="a hashtag you sent">#${esc(h)}</a>`).join('')}${i.tags.filter((t) => !i.hashtags.includes(t)).map((t) => `<span class="tag">${esc(t)}<span class="x" data-rmtag="${esc(t)}" title="remove">✕</span></span>`).join('')}${i.ents.map((e) => (e[1] === 'product' || e[1] === 'brand') ? `<a class="tag ent" href="#/entity/${encodeURIComponent(e[0])}" title="${esc(e[1])} · everything that names it" data-ent>${esc(e[0])} ›</a>` : `<span class="tag ent" title="${esc(e[1])}">${esc(e[0])}</span>`).join('')}<span class="addtag"><input id="addtag-in" placeholder="add a word"><button class="tag" id="addtag-go">add</button></span></div></div>
     <div class="sec"><h4><span class="truth you">Yours</span> Spaces</h4><div class="spacerow">${SPACES.map((s) => `<button class="${i.spaces.includes(s.id) ? 'in' : ''}" data-tog="${s.id}">${i.spaces.includes(s.id) ? '✓ ' : '+ '}${esc(s.name)}</button>`).join('')}<button data-newspace>+ New Space</button></div></div>${connectedHtml}<div class="sec" id="related" hidden></div>`;
 
