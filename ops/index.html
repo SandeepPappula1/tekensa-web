@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://mahlfdtxrnrrqgyhzjhs.supabase.co; connect-src https://mahlfdtxrnrrqgyhzjhs.supabase.co wss://mahlfdtxrnrrqgyhzjhs.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tekensa · team</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;900&family=Inter:wght@400;500;600;700&display=swap">
+<!-- versioned like /home: bump ?v= on every publish -->
+<link rel="stylesheet" href="styles.css?v=20261110a">
+</head>
+<body>
+
+<!-- Everything below starts hidden. The script shows ONE of: the sign-in line, the not-staff line, or the doors the
+     staff row's role allows. A person with no staff row sees the one line and nothing else. -->
+<main id="signed-out" class="oneline" hidden><p>Sign in first: <a href="/login/">tekensa.com/login</a>, then come back to this page.</p></main>
+<main id="not-staff" class="oneline" hidden><p>this page is for Tekensa's team</p></main>
+
+<div id="doors" hidden>
+  <header class="top">
+    <a class="wordmark" href="/ops/"><b>tekensa</b><small id="role-word"></small></a>
+    <nav class="doornav" id="doornav" aria-label="Doors"></nav>
+  </header>
+
+  <main>
+    <!-- FOUNDER: counts, funnel, quality, issues, controls, staff. Never a capture's content. -->
+    <section class="door" id="d-founder" hidden>
+      <div class="page-h"><div><h1>today</h1><p id="f-asof">Counting…</p></div><span class="pulse" id="f-pulse" hidden></span></div>
+      <div class="cards" id="f-cards"></div>
+
+      <h2 class="sec">funnel</h2>
+      <div class="funnel" id="f-funnel"></div>
+
+      <h2 class="sec">reading quality</h2>
+      <div class="cards" id="f-quality"></div>
+      <div class="chips" id="f-corrections"></div>
+
+      <h2 class="sec">open issues</h2>
+      <div id="f-issues" class="issues"></div>
+
+      <h2 class="sec">controls</h2>
+      <div class="panel">
+        <h3>pause a channel</h3>
+        <p class="fine">A paused channel still receives; nothing it sends is read or replied to until it is resumed.</p>
+        <div class="chips" id="f-pause"></div>
+        <h3>daily cap</h3>
+        <p class="fine">Model reads a day, across everyone. Past it, new things wait for tomorrow.</p>
+        <form class="row" id="f-cap-form"><input id="f-cap" type="number" min="0" step="1" inputmode="numeric" aria-label="Daily cap"><button class="btn" type="submit">save cap</button></form>
+        <p class="fine" id="f-cap-msg" role="status" aria-live="polite"></p>
+      </div>
+
+      <h2 class="sec">team</h2>
+      <div class="panel">
+        <h3>add a staff member</h3>
+        <p class="fine">Their user id (from Supabase Auth). They see the door their role allows the next time they open this page.</p>
+        <form class="row" id="f-staff-form">
+          <input id="f-staff-id" type="text" autocomplete="off" spellcheck="false" placeholder="user id (uuid)" aria-label="User id">
+          <select id="f-staff-role" aria-label="Role"><option value="qa">qa</option><option value="ops">ops</option><option value="founder">founder</option></select>
+          <button class="btn" type="submit">add</button>
+        </form>
+        <p class="fine" id="f-staff-msg" role="status" aria-live="polite"></p>
+      </div>
+
+      <h2 class="sec">open pull requests</h2>
+      <ul class="links">
+        <li><a href="https://github.com/SandeepPappula1/Spark-v5/pulls" rel="noopener noreferrer" target="_blank">all open</a></li>
+        <li><a href="https://github.com/SandeepPappula1/Spark-v5/pulls?q=is%3Apr+is%3Aopen+review%3Arequired" rel="noopener noreferrer" target="_blank">waiting for review</a></li>
+        <li><a href="https://github.com/SandeepPappula1/Spark-v5/pulls?q=is%3Apr+is%3Aclosed" rel="noopener noreferrer" target="_blank">recently closed</a></li>
+      </ul>
+    </section>
+
+    <!-- OPS: the queue, one row's evidence at a time, mark, re-queue, a reply drafted for a human to send. -->
+    <section class="door" id="d-ops" hidden>
+      <div class="page-h"><div><h1>issues</h1><p id="o-sub">Loading…</p></div></div>
+      <div id="o-issues" class="issues"></div>
+    </section>
+
+    <!-- QA: today's sample, thumbnail + title + category + tags, and "wrong →". -->
+    <section class="door" id="d-qa" hidden>
+      <div class="page-h"><div><h1>sort check</h1><p id="q-sub">Loading…</p></div></div>
+      <div id="q-strip" class="qstrip"></div>
+    </section>
+  </main>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="sortpop" id="sortpop" role="dialog" aria-label="Choose the right category"></div>
+<aside class="sheet" id="sheet" role="dialog" aria-label="Issue"></aside>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="/home/vendor/supabase-2.116.0.js"></script>
+<script src="/home/config.js?v=20261110a"></script>
+<script src="app.js?v=20261110a"></script>
+</body>
+</html>

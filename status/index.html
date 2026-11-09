@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://mahlfdtxrnrrqgyhzjhs.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tekensa · status</title>
+<meta name="description" content="Is Tekensa working right now? Counts only, refreshed every minute.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;900&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/ops/styles.css?v=20261110a">
+</head>
+<body>
+<!-- Public. No sign-in, no session, no realtime: the anon key asks status_public() once a minute. Counts only. -->
+<main class="status">
+  <p style="margin:0 0 24px"><a href="/" class="wordmark"><b>tekensa</b></a></p>
+  <h1>status</h1>
+  <ul id="s-lines" aria-live="polite"><li><i></i><span>Asking…</span></li></ul>
+  <p class="fine" id="s-asof"></p>
+</main>
+<script src="/home/config.js?v=20261110a"></script>
+<script src="app.js?v=20261110a"></script>
+</body>
+</html>

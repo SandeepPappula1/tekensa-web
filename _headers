@@ -15,3 +15,11 @@
   Cache-Control: no-store
 /login/*
   Cache-Control: no-store
+/ops
+  Cache-Control: no-store
+/ops/*
+  Cache-Control: no-store
+/status
+  Cache-Control: no-store
+/status/*
+  Cache-Control: no-store
