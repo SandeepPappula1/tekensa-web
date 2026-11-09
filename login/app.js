@@ -61,7 +61,9 @@
   /* ---------- the DM is the door (server 0029) ----------
      ?k=<43 characters> is a one-time key that came down the person's own Instagram or WhatsApp thread. The page asks
      the server what it is good for WITHOUT spending it (peek), then:
-       - the inbox already has an account  → spend it, take the one-time sign-in token, and go to /home;
+       - the inbox already has an account  → one tap on "open my tekensa" spends it, takes the one-time sign-in
+                                             token, and goes to /home (never on load: Meta's preview fetcher runs
+                                             scripts and spent every door before the person could — 9 Nov 2026);
        - the inbox is new                  → ask one question. "open my tekensa" spends it and makes the account;
                                              "I already have an account" leaves it unspent and shows the ordinary
                                              sign-in, where the six-digit code in the same link joins the inbox.
@@ -95,14 +97,19 @@
     if (data?.session) { location.replace('/home/'); return; }
     let p; try { p = await door({ k: doorKey, peek: true }); } catch { p = { ok: false, status: 0, json: {} }; }
     if (!p.ok) { doorFailed(p.status === 404 ? DOOR_GONE : 'Could not open it just now. Try the link again in a moment, or sign in below.'); return; }
-    if (p.json.linked) { await openDoor(); return; }
+    // THE CRAWLER TAPS FIRST (9 Nov 2026). Meta's link-preview fetcher RUNS this page's script: every door minted
+    // since 1 Nov was spent 8–30 seconds after the reply, from 31.13.*, 66.220.*, 173.252.*, and a session was made
+    // for the crawler. So a linked inbox is no longer opened on load; the key is spent only by a tap on the button.
+    // A fetcher renders the page; it does not press anything.
     const who = (p.json.channel === 'instagram' ? 'Instagram' : p.json.channel === 'whatsapp' ? 'WhatsApp' : 'your inbox') + (p.json.name ? ' ' + String(p.json.name).replace(/^@?/, '@') : '');
     $('#door-lead').textContent = '';
-    const b = document.createElement('b'); b.textContent = 'Saved from ' + who + '.'; $('#door-lead').appendChild(b);
-    if (p.json.channel === 'whatsapp') $('#door-new .link-note').textContent = 'No email and no password. Your WhatsApp is the key: any time you send us something, the reply opens your Tekensa.';
+    const b = document.createElement('b'); b.textContent = (p.json.linked ? 'Your Tekensa, from ' : 'Saved from ') + who + '.'; $('#door-lead').appendChild(b);
+    if (p.json.linked) { $('#door-body').textContent = 'What you sent is saved and sorted. One tap opens your collection.'; $('#door-have').parentElement.hidden = true; }
+    else if (p.json.channel === 'whatsapp') $('#door-new .link-note').textContent = 'No email and no password. Your WhatsApp is the key: any time you send us something, the reply opens your Tekensa.';
     $('#door-new').hidden = false;
   }
-  $('#door-open').addEventListener('click', () => { void openDoor(); });
+  // only a real press spends the key: a synthetic click from a script is not a tap
+  $('#door-open').addEventListener('click', (e) => { if (e.isTrusted === false) return; void openDoor(); });
   // "I already have an account": the key stays unspent; the ordinary sign-in below joins this inbox by the code in the link
   $('#door-have').addEventListener('click', () => { doorActive = false; void refreshStep(); });
 
