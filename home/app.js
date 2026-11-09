@@ -373,7 +373,7 @@ let dayWatcher = null;
 function watchDays() {
   if (dayWatcher) dayWatcher.disconnect();
   const end = $('#dayend'); if (!end || !('IntersectionObserver' in window)) { revealDays(Infinity); return; }
-  dayWatcher = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { revealDays(); if (!document.querySelector('.rail.day[data-later][hidden]')) dayWatcher.disconnect(); } }, { rootMargin: '0px 0px 120px 0px' });
+  dayWatcher = new window.IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { revealDays(); if (!document.querySelector('.rail.day[data-later][hidden]')) dayWatcher.disconnect(); } }, { rootMargin: '0px 0px 120px 0px' });
   dayWatcher.observe(end);
 }
 /* ---------- FOLDERS ON THE EDGE (Phase W.2, 9 Nov 2026) ----------
