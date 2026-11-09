@@ -375,6 +375,25 @@ function openSort(id, anchor) {
   if (window.innerWidth > 760 && anchor) { const r = anchor.getBoundingClientRect(); pop.style.top = Math.min(window.innerHeight - 20 - pop.offsetHeight, r.bottom + 8) + 'px'; pop.style.left = Math.min(window.innerWidth - 20 - pop.offsetWidth, Math.max(16, r.left)) + 'px'; } else { pop.style.top = ''; pop.style.left = ''; }
 }
 function closeSort() { $('#sortpop').classList.remove('on'); if (!openId) $('#scrim').classList.remove('on'); sortId = null; }
+/** A folder is named in the page, never in a browser prompt (a prompt blocks every tab and reads as the system's, not Tekensa's). */
+function openNewFolder(withId, anchor) {
+  sortId = withId ?? null;
+  const pop = $('#sortpop');
+  pop.innerHTML = `<div class="sp-h"><b>name the folder</b><button class="x" data-sort-x aria-label="Close">✕</button></div><form class="sp-new" data-newfolder-form><input id="nf-name" maxlength="40" placeholder="medical · Goa trip · for mum" autocomplete="off" aria-label="Folder name"><button class="btn y" type="submit">create</button></form><p class="hint">A folder is yours to fill; what you put in it teaches nothing and hides nothing.</p>`;
+  pop.classList.add('on'); $('#scrim').classList.add('on');
+  if (window.innerWidth > 760 && anchor) { const r = anchor.getBoundingClientRect(); pop.style.top = Math.min(window.innerHeight - 20 - pop.offsetHeight, r.bottom + 8) + 'px'; pop.style.left = Math.min(window.innerWidth - 20 - pop.offsetWidth, Math.max(16, r.left)) + 'px'; } else { pop.style.top = ''; pop.style.left = ''; }
+  setTimeout(() => $('#nf-name')?.focus(), 30);
+}
+document.addEventListener('submit', async (e) => {
+  const f = e.target.closest('[data-newfolder-form]'); if (!f) return; e.preventDefault();
+  const n = $('#nf-name').value.trim(); if (!n) return;
+  const { data, error } = await sb.from('spaces').insert({ user_id: session.user.id, name: n }).select('id, name, note, sort').single();
+  if (error) return toast(error.message);
+  SPACES.push(data); const id = sortId; closeSort();
+  if (id) { await addToSpaceQuiet(id, data.id); refreshAfterSort(id); }
+  else { const fo = $('#folders'); if (fo) fo.outerHTML = foldersHtml(ITEMS); const nav = document.querySelector('nav.browse'); if (nav) nav.outerHTML = browseHtml(ITEMS); if (location.hash.startsWith('#/spaces')) renderSpaces(); }
+  toast('Folder made: ' + data.name);
+});
 /** After a sort: the card(s), the strip, the folders and the index are redrawn in place — never the whole view, which would scroll to the top. */
 function refreshAfterSort(id) {
   const i = ITEMS.find((x) => x.id === id); if (!i) return;
@@ -1058,15 +1077,15 @@ document.addEventListener('click', async (e) => {
   if (t.closest('[data-sort-x]')) { closeSort(); return; }
   const pc = t.closest('[data-pick-cat]'); if (pc && sortId) { const id = sortId; closeSort(); await fileUnder(id, pc.dataset.pickCat); return; }
   const ps = t.closest('[data-pick-space]'); if (ps && sortId) { const id = sortId; const i = ITEMS.find((x) => x.id === id); closeSort(); if (i.spaces.includes(ps.dataset.pickSpace)) await removeFromSpaceQuiet(id, ps.dataset.pickSpace); else await addToSpaceQuiet(id, ps.dataset.pickSpace); refreshAfterSort(id); return; }
-  const nfw = t.closest('[data-newfolder-with]'); if (nfw) { const id = nfw.dataset.newfolderWith; closeSort(); const sid = await newSpace(); if (sid) { await addToSpaceQuiet(id, sid); refreshAfterSort(id); } return; }
-  if (t.closest('[data-newfolder]')) { const sid = await newSpace(); if (sid) { const f = $('#folders'); if (f) f.outerHTML = foldersHtml(ITEMS); const nav = document.querySelector('nav.browse'); if (nav) nav.outerHTML = browseHtml(ITEMS); } return; }
+  const nfw = t.closest('[data-newfolder-with]'); if (nfw) { openNewFolder(nfw.dataset.newfolderWith, nfw); return; }
+  const nf = t.closest('[data-newfolder]'); if (nf) { openNewFolder(null, nf); return; }
   const card = t.closest('.card'); if (card) { openItem(card.dataset.id); return; }
   const agRow = t.closest('[data-open]'); if (agRow) { openItem(agRow.dataset.open); return; }
   // scrollTo, not scrollIntoView: a smooth scrollIntoView does nothing for a section under content-visibility:auto (seen live, 9 Nov 2026)
   const jump = t.closest('[data-jump]'); if (jump) { const sec = document.getElementById('day-' + jump.dataset.jump); if (sec) window.scrollTo({ top: sec.getBoundingClientRect().top + window.scrollY - 70, behavior: 'smooth' }); return; }
   if (t.id === 'sheetx' || t.id === 'scrim') { closeSort(); closeSheet(); return; }
-  if (t.id === 'newspace') { await newSpace(); renderSpaces(); return; }
-  if (t.closest('[data-newspace]') && openId) { await newSpace(openId); openItem(openId); return; }
+  if (t.id === 'newspace') { openNewFolder(null, t); return; }
+  if (t.closest('[data-newspace]') && openId) { openNewFolder(openId, t.closest('[data-newspace]')); return; }
   const tog = t.closest('[data-tog]'); if (tog && openId) { const i = ITEMS.find((x) => x.id === openId); if (i.spaces.includes(tog.dataset.tog)) await removeFromSpace(openId, tog.dataset.tog); else await addToSpace(openId, tog.dataset.tog); openItem(openId); return; }
   if (t.closest('[data-del]')) { $('#del-confirm').hidden = false; return; }
   if (t.closest('[data-del-no]')) { $('#del-confirm').hidden = true; return; }
@@ -1129,7 +1148,7 @@ document.addEventListener('drop', async (e) => {
   const sid = d.dataset.drop || d.dataset.space; const id = dragId; dragId = null; $('#dock').classList.remove('on');
   // a drop on a shelf on the board's edge files the thing there — a correction, which teaches the filer
   if (sid.startsWith('cat:')) { await fileUnder(id, sid.slice(4)); return; }
-  if (sid === '__new') { const nid = await newSpace(); if (nid) { await addToSpaceQuiet(id, nid); refreshAfterSort(id); } return; }
+  if (sid === '__new') { openNewFolder(id, null); return; }
   if (location.hash.startsWith('#/home') || location.hash === '' || location.hash === '#/') { await addToSpaceQuiet(id, sid); refreshAfterSort(id); } else await addToSpace(id, sid);
 });
 

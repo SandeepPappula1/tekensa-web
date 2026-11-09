@@ -562,6 +562,9 @@ textarea.note{width:100%;min-height:64px;background:var(--surf);border:1px solid
 .sortpop .chip{cursor:pointer}
 .sortpop .chip.maybe{border-color:var(--accent)}
 .sortpop .chip.new{background:transparent;border-style:dashed}
+.sortpop .sp-new{display:flex;gap:8px;margin:4px 0 8px}
+.sortpop .sp-new input{flex:1;min-width:0;padding:9px 12px;border-radius:10px;background:var(--surf);border:1px solid var(--line);color:var(--ink);font:inherit}
+.sortpop .hint{margin:0;font-size:12px;color:var(--mute)}
 @media (max-width:760px){.sortpop{left:0!important;right:0;bottom:0;top:auto!important;width:100%;border-radius:18px 18px 0 0;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));max-height:70vh;overflow-y:auto}.sortstrip .srows{grid-template-columns:1fr}}
 .rail.day .rail-h h2{font-family:var(--serif);font-weight:700;font-size:24px}
 .tags a.tag{text-decoration:none;color:var(--accent)}
