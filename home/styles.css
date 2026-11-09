@@ -540,9 +540,11 @@ textarea.note{width:100%;min-height:64px;background:var(--surf);border:1px solid
 .grid .card.ed .ed-s .sort{display:inline;color:var(--paper-ink);font-weight:600;border-bottom:1px dotted var(--paper-ink-dim);cursor:pointer}
 .grid .card.ed .ed-s .sort.unsorted{color:#2A2AF0;border-bottom-color:#2A2AF0}
 .grid .card.ed .ed-s .sort:hover{border-bottom-style:solid}
-.sortstrip{margin:-10px 0 26px}
-.sortstrip .srows{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
-.srow{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 10px 8px 8px;border-radius:12px;background:var(--surf);border:1px solid var(--line)}
+.sortstrip{margin:-10px 0 26px;min-width:0}
+.sortstrip .rail-h{flex-wrap:wrap;row-gap:2px}
+.sortstrip .rail-h h2{white-space:nowrap}
+.sortstrip .srows{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));min-width:0}
+.srow{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 10px 8px 8px;border-radius:12px;background:var(--surf);border:1px solid var(--line);min-width:0}
 .srow .sthumb{width:44px;height:44px;border-radius:8px;overflow:hidden;position:relative}
 .srow .sthumb img{width:100%;height:100%;object-fit:cover;display:block}
 .srow .smain{display:flex;flex-direction:column;min-width:0}
