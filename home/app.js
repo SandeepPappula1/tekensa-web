@@ -148,7 +148,16 @@ function posterHtml(item, big) {
   return `<div class="poster p-${cls}${img ? ' has-img' : ''}" style="background:${art(item)}">${img}${inner}<div class="vig"></div>${state}</div>`;
 }
 function srcHtml(i) { return `<span class="src ${i.src}"><i></i>${SRCLABEL[i.src] ?? i.src}</span>`; }
-function ago(d) { const n = Math.round((Date.now() - d) / 864e5); if (n <= 0) return 'today'; if (n === 1) return 'yesterday'; if (n < 7) return n + ' days ago'; if (n < 30) return Math.round(n / 7) + ' wk ago'; return Math.round(n / 30) + ' mo ago'; }
+// a thing sent today says how many hours ago (founder, 9 Nov 2026: "by you · n hours ago"); older things say the day
+function ago(d) {
+  const ms = Date.now() - d; const min = Math.round(ms / 6e4);
+  if (min < 2) return 'just now'; if (min < 60) return min + ' min ago';
+  const h = Math.round(min / 60); if (h < 24 && dayKey(d) === dayKey(new Date())) return h === 1 ? 'an hour ago' : h + ' hours ago';
+  const n = Math.round(ms / 864e5); if (n <= 1) return 'yesterday'; if (n < 7) return n + ' days ago'; if (n < 30) return Math.round(n / 7) + ' wk ago'; return Math.round(n / 30) + ' mo ago';
+}
+/** Who put it here. Today every thing on a person's wall is their own; a thing that arrives from a room (gated, release
+    order E1) will carry the sender's name or the room's in this same place. */
+function byLine(i) { return i.by ? 'by ' + esc(i.by) : 'by you'; }
 /* ---------- THE EDITORIAL TILE (founder, 4 Oct 2026: "can we create tiles like these", a news card from an Instagram
    story) ---------- A paper card on the dark board: the picture on top, a small mark saying where it came from, then the
    headline in a serif with the words that matter set in bold italic. The emphasis is not decoration — it is the thing the
@@ -208,7 +217,7 @@ function edCardHtml(i) {
   // not yet sorted says so and offers the filer's lean when it has one. A span, not a button: the card is already a button.
   const shelf = i.cat && i.cat !== 'unsorted' ? `<span class="sort" role="button" tabindex="0" data-sort="${i.id}" title="file it elsewhere">${esc(CATS[i.cat] ?? i.cat)}</span>`
     : `<span class="sort unsorted" role="button" tabindex="0" data-sort="${i.id}">${i.facets?.maybe && CATS[i.facets.maybe] ? 'maybe ' + esc(CATS[i.facets.maybe]) + '?' : 'sort ›'}</span>`;
-  const sub = [facts, shelf, ago(i.date) + (i.dup ? ' · sent again' : '')].filter(Boolean).join(' · ');
+  const sub = [facts, shelf, byLine(i) + ' · ' + ago(i.date) + (i.dup ? ' · sent again' : '')].filter(Boolean).join(' · ');
   return `<button class="card ed ${t === 'note' ? 'words' : ''} ${i.status === 'failed' ? 'failed' : ''}" draggable="true" data-id="${i.id}" aria-label="${esc(i.title)}">${media}${flag}<div class="ed-src">${edSource(i)}</div><h3 class="ed-h">${headline}</h3><div class="ed-s">${sub}</div></button>`;
 }
 
@@ -335,11 +344,37 @@ function gridHtml(items) { return `<div class="grid">${items.map((i) => cardHtml
    A dump is chronological by nature: the board is every thing under the day it was sent, newest day first, each day's
    heading staying put while its things scroll by, and the date chips jump. Any chip in the index narrows THIS column —
    a filter never opens another kind of screen. Pinterest hides time because it has none; a person's own things have. */
-function daysHtml(items) {
+function daySectionHtml(k, its, later) { return `<section class="rail day" id="day-${k}"${later ? ' data-later hidden' : ''}><div class="rail-h"><h2>${esc(dayLabel(k))}</h2><span class="why">${its.length} thing${its.length === 1 ? '' : 's'}</span></div>${gridHtml(its)}</section>`; }
+/* The wall ends with today (founder, 9 Nov 2026): "end of the day will be like that's all for today; if they drag a little
+   more then the past days and weeks and months and years open up". So the column shows today (or, with nothing sent
+   today, the latest day), says so, and the earlier days are in the page but hidden until the person scrolls to the line —
+   seven days at a time — or taps a date chip, which opens them all. A narrowed list (a shelf, a topic) shows every day. */
+const DAY_BATCH = 7;
+function daysHtml(items, { all = false } = {}) {
   const groups = new Map();
   for (const i of items) { const k = dayKey(i.date); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(i); }
   const keys = [...groups.keys()].sort().reverse();
-  return keys.map((k) => { const its = groups.get(k); return `<section class="rail day" id="day-${k}"><div class="rail-h"><h2>${esc(dayLabel(k))}</h2><span class="why">${its.length} thing${its.length === 1 ? '' : 's'}</span></div>${gridHtml(its)}</section>`; }).join('');
+  if (all || keys.length < 2) return keys.map((k) => daySectionHtml(k, groups.get(k), false)).join('');
+  const today = dayKey(new Date()); const hasToday = keys[0] === today;
+  const oldest = new Date(keys[keys.length - 1] + 'T00:00:00+05:30').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+  const end = `<div class="dayend" id="dayend" data-left="${keys.length - 1}" data-oldest="${esc(oldest)}"><b>${hasToday ? 'that’s all for today' : 'nothing new today'}</b><small>${hasToday ? '' : 'the last was ' + esc(dayLabel(keys[0]).toLowerCase()) + ' · '}keep scrolling for earlier days ↓</small></div>`;
+  return keys.map((k, n) => daySectionHtml(k, groups.get(k), n > 0) + (n === 0 ? end : '')).join('');
+}
+/** Opens the next seven hidden days (or all of them); the end line counts down and, with nothing left, says how far back the wall goes. */
+function revealDays(n = DAY_BATCH) {
+  const hidden = [...document.querySelectorAll('.rail.day[data-later][hidden]')];
+  hidden.slice(0, n).forEach((s) => { s.hidden = false; });
+  const end = $('#dayend'); if (!end) return;
+  const left = hidden.length - Math.min(n, hidden.length);
+  end.dataset.left = left;
+  end.querySelector('small').textContent = left ? `${left} earlier day${left === 1 ? '' : 's'} below · keep scrolling` : `everything is here, back to ${end.dataset.oldest}`;
+}
+let dayWatcher = null;
+function watchDays() {
+  if (dayWatcher) dayWatcher.disconnect();
+  const end = $('#dayend'); if (!end || !('IntersectionObserver' in window)) { revealDays(Infinity); return; }
+  dayWatcher = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { revealDays(); if (!document.querySelector('.rail.day[data-later][hidden]')) dayWatcher.disconnect(); } }, { rootMargin: '0px 0px 120px 0px' });
+  dayWatcher.observe(end);
 }
 /* ---------- FOLDERS ON THE EDGE (Phase W.2, 9 Nov 2026) ----------
    The person's own folders (spaces) first, then the shelves that hold something. Each is a drop target on a wide screen;
@@ -427,16 +462,18 @@ function spaceName(id) { return SPACES.find((s) => s.id === id)?.name ?? ''; }
 function renderHome() {
   const live = ITEMS;
   const h = new Date().getHours();
-  $('#greet').innerHTML = `${h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening'}.`;
-  $('#greetsub').textContent = live.length ? `${live.length} thing${live.length > 1 ? 's' : ''} you didn't want to lose · organised for you.` : 'Send us anything you don’t want to lose.';
+  // the same word the app's lane wears (founder, 9 Nov 2026): the wall is `all`; no count — it is the person's own wall and timeline, not a tally
+  $('#greet').innerHTML = 'all';
+  $('#greetsub').textContent = live.length ? `${h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening'}. your wall and your timeline — everything you sent, on the day you sent it.` : 'Send us anything you don’t want to lose.';
   const B = $('#home-body');
   if (!live.length) { B.innerHTML = `<div class="empty"><div><h1>Send us anything you don't want to lose.</h1><p>A link, a screenshot, a voice note, a PDF, a thought. Don't sort it. Just send it.</p><div class="ways"><div class="way"><b>+ add</b><small>Paste a link or text, or pick a file.</small></div><div class="way"><b>Instagram</b><small>DM anything to <a href="https://instagram.com/tekensa" target="_blank" rel="noopener">@tekensa</a>. Tekensa reads it, files it, and replies with where it went and a one-tap link straight back here.</small></div><div class="way"><b>WhatsApp</b><small>Coming: the same, once the number is live.</small></div></div></div></div>`; return; }
   // THE BOARD (founder, 3 Oct 2026: "like Pinterest"): everything, newest first, as one wall of pictures with the index
   // above it as the way to narrow. A reel shows its cover, a link its picture, a photo itself, a note its words.
   if (layout === 'board') {
     const rows = agenda(live).filter((r) => !r.overdue);
-    const strip = rows.length ? `<section class="agenda strip"><div class="rail-h"><h2>coming up</h2><span class="why">from the dates in what you sent</span><a href="#/days">see all ›</a></div>${agendaHtml(rows, { limit: 6, flat: true })}</section>` : '';
-    B.innerHTML = strip + browseHtml(live) + sortStripHtml(live) + dateJumpsHtml(live) + `<div class="boardwrap"><div class="col">${daysHtml(live)}</div>${foldersHtml(live)}</div>`; return;
+    // `yours` is the app's other lane — the day that matters, not the day it was sent; here it is shown, there it is acted on
+    const strip = rows.length ? `<section class="agenda strip"><div class="rail-h"><h2>yours</h2><span class="why">coming up · from the dates in what you sent</span><a href="#/days">see all ›</a></div>${agendaHtml(rows, { limit: 6, flat: true })}</section>` : '';
+    B.innerHTML = strip + browseHtml(live) + sortStripHtml(live) + dateJumpsHtml(live) + `<div class="boardwrap"><div class="col">${daysHtml(live)}</div>${foldersHtml(live)}</div>`; watchDays(); return;
   }
   const processing = live.filter((i) => !['ready', 'limited'].includes(i.status));
   // THE HOME IS AN INDEX FIRST (3 Oct 2026). It used to be up to thirty rows, one per shelf, most of them holding one
@@ -570,7 +607,7 @@ function agendaHtml(rows, { limit = null, flat = false } = {}) {
 // the days page is now only the dates read off what was sent (the board itself is day by day since Phase W, 9 Nov 2026)
 function renderDays() {
   const rows = agenda(ITEMS);
-  $('#days-sub').textContent = rows.length ? `${rows.length} date${rows.length === 1 ? '' : 's'} read off what you sent — past, today, and the days ahead.` : 'Nothing dated yet. Send a bill, a ticket or an appointment and its day lands here.';
+  $('#days-sub').textContent = rows.length ? `coming up · ${rows.length} date${rows.length === 1 ? '' : 's'} read off what you sent — past, today, and the days ahead.` : 'Nothing dated yet. Send a bill, a ticket or an appointment and its day lands here.';
   $('#days-body').innerHTML = rows.length ? `<section class="agenda">${agendaHtml(rows)}${appLine()}</section>` : '';
 }
 function renderList(kind, key) {
@@ -600,7 +637,7 @@ function renderList(kind, key) {
   }
   $('#list-title').textContent = title; $('#list-sub').innerHTML = `${esc(sub)} ${items.length} thing${items.length === 1 ? '' : 's'}. <a class="clear" href="#/home">show everything ›</a>`;
   // the same column, narrowed: day by day, newest first, with the date chips — never a different kind of screen
-  $('#list-body').innerHTML = lead + (items.length ? dateJumpsHtml(items) + daysHtml(items) : '<p class="empty-rail">Nothing here yet.</p>');
+  $('#list-body').innerHTML = lead + (items.length ? dateJumpsHtml(items) + daysHtml(items, { all: true }) : '<p class="empty-rail">Nothing here yet.</p>');
 }
 function renderSpaces() {
   $('#spaces-grid').innerHTML = SPACES.map((s) => { const items = ITEMS.filter((i) => i.spaces.includes(s.id)); return `<a class="space" href="#/s/${s.id}" data-space="${s.id}"><div class="mos">${items.slice(0, 3).map((i) => `<i style="background:${art(i)}"></i>`).join('')}${'<i style="background:var(--raise)"></i>'.repeat(Math.max(0, 3 - items.length))}</div><h3>${esc(s.name)}</h3><small>${items.length} things${s.note ? ' · ' + esc(s.note) : ''}</small></a>`; }).join('') + `<button class="space newbtn" id="newspace"><span style="font-size:28px;line-height:1">+</span>new space</button>`;
@@ -1082,7 +1119,7 @@ document.addEventListener('click', async (e) => {
   const card = t.closest('.card'); if (card) { openItem(card.dataset.id); return; }
   const agRow = t.closest('[data-open]'); if (agRow) { openItem(agRow.dataset.open); return; }
   // scrollTo, not scrollIntoView: a smooth scrollIntoView does nothing for a section under content-visibility:auto (seen live, 9 Nov 2026)
-  const jump = t.closest('[data-jump]'); if (jump) { const sec = document.getElementById('day-' + jump.dataset.jump); if (sec) window.scrollTo({ top: sec.getBoundingClientRect().top + window.scrollY - 70, behavior: 'smooth' }); return; }
+  const jump = t.closest('[data-jump]'); if (jump) { revealDays(Infinity); const sec = document.getElementById('day-' + jump.dataset.jump); if (sec) window.scrollTo({ top: sec.getBoundingClientRect().top + window.scrollY - 70, behavior: 'smooth' }); return; }
   if (t.id === 'sheetx' || t.id === 'scrim') { closeSort(); closeSheet(); return; }
   if (t.id === 'newspace') { openNewFolder(null, t); return; }
   if (t.closest('[data-newspace]') && openId) { openNewFolder(openId, t.closest('[data-newspace]')); return; }
