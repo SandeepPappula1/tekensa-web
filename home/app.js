@@ -327,6 +327,29 @@ function appLine() {
   return `<p class="ag-app">Want a 09:00 reminder on the day, and to tick things done? That is the app. <a href="/join/">get the app</a></p>`;
 }
 function gridHtml(items) { return `<div class="grid">${items.map((i) => cardHtml(i, { grid: true })).join('')}</div>`; }
+/* ---------- THE COLUMN IS THE TIMELINE (Phase W, 9 Nov 2026) ----------
+   A dump is chronological by nature: the board is every thing under the day it was sent, newest day first, each day's
+   heading staying put while its things scroll by, and the date chips jump. Any chip in the index narrows THIS column —
+   a filter never opens another kind of screen. Pinterest hides time because it has none; a person's own things have. */
+function daysHtml(items) {
+  const groups = new Map();
+  for (const i of items) { const k = dayKey(i.date); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(i); }
+  const keys = [...groups.keys()].sort().reverse();
+  return keys.map((k) => { const its = groups.get(k); return `<section class="rail day" id="day-${k}"><div class="rail-h"><h2>${esc(dayLabel(k))}</h2><span class="why">${its.length} thing${its.length === 1 ? '' : 's'}</span></div>${gridHtml(its)}</section>`; }).join('');
+}
+function dateJumpsHtml(items) {
+  const keys = [...new Set(items.map((i) => dayKey(i.date)))].sort().reverse();
+  if (keys.length < 2) return '';
+  const today = dayKey(new Date()); const yesterday = dayKey(new Date(Date.now() - 864e5));
+  const chips = [];
+  if (keys.includes(today)) chips.push(['today', today]);
+  if (keys.includes(yesterday)) chips.push(['yesterday', yesterday]);
+  // one chip per month that holds something; it lands on the newest day of that month
+  const months = new Map();
+  for (const k of keys) { const m = k.slice(0, 7); if (!months.has(m)) months.set(m, k); }
+  for (const [m, k] of months) { const d = new Date(m + '-01T00:00:00+05:30'); chips.push([d.toLocaleDateString('en-IN', { month: 'long', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined }).toLowerCase(), k]); }
+  return `<div class="datebar" aria-label="Jump to a day"><span class="lbl">when</span>${chips.map(([l, k]) => `<button class="chip" data-jump="${k}">${esc(l)}</button>`).join('')}</div>`;
+}
 function spaceName(id) { return SPACES.find((s) => s.id === id)?.name ?? ''; }
 
 /* ---------- views ---------- */
@@ -342,7 +365,7 @@ function renderHome() {
   if (layout === 'board') {
     const rows = agenda(live).filter((r) => !r.overdue);
     const strip = rows.length ? `<section class="agenda strip"><div class="rail-h"><h2>coming up</h2><span class="why">from the dates in what you sent</span><a href="#/days">see all ›</a></div>${agendaHtml(rows, { limit: 6, flat: true })}</section>` : '';
-    B.innerHTML = strip + browseHtml(live) + gridHtml(live); return;
+    B.innerHTML = strip + browseHtml(live) + dateJumpsHtml(live) + daysHtml(live); return;
   }
   const processing = live.filter((i) => !['ready', 'limited'].includes(i.status));
   // THE HOME IS AN INDEX FIRST (3 Oct 2026). It used to be up to thirty rows, one per shelf, most of them holding one
@@ -470,14 +493,11 @@ function agendaHtml(rows, { limit = null, flat = false } = {}) {
   return [...groups.entries()].map(([k, rs]) => `<section class="ag-day"><h3>${k === 'overdue' ? 'past' : esc(dayLabel(k))}</h3>${rs.map(agendaRowHtml).join('')}</section>`).join('') + (limit && rows.length > limit ? `<a class="ag-more" href="#/days">${rows.length - limit} more coming up ›</a>` : '');
 }
 
+// the days page is now only the dates read off what was sent (the board itself is day by day since Phase W, 9 Nov 2026)
 function renderDays() {
-  const groups = new Map();
-  for (const i of ITEMS) { const k = dayKey(i.date); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(i); }
-  const keys = [...groups.keys()].sort().reverse();
-  $('#days-sub').textContent = ITEMS.length ? `${ITEMS.length} thing${ITEMS.length === 1 ? '' : 's'} over ${keys.length} day${keys.length === 1 ? '' : 's'}. Every one of them is here.` : 'Nothing yet. Send something and it appears under today.';
   const rows = agenda(ITEMS);
-  const feed = rows.length ? `<section class="agenda"><div class="rail-h"><h2>coming up</h2><span class="why">every date read off what you sent</span></div>${agendaHtml(rows)}${appLine()}</section>` : `<section class="agenda"><div class="rail-h"><h2>coming up</h2><span class="why">nothing dated yet</span></div><p class="empty-rail">Send a bill, a ticket or an appointment and its day lands here.</p></section>`;
-  $('#days-body').innerHTML = feed + `<div class="rail-h" style="margin-top:28px"><h2>sent, day by day</h2></div>` + keys.map((k) => { const items = groups.get(k); const missing = items.filter((i) => !i.complete && ['ready', 'limited', 'failed'].includes(i.status)).length; return `<section class="rail day"><div class="rail-h"><h2>${esc(dayLabel(k))}</h2><span class="why">${items.length} thing${items.length === 1 ? '' : 's'}${missing ? ` · ${missing} still being completed` : ''}</span></div>${gridHtml(items)}</section>`; }).join('') || '<p class="empty-rail">Nothing yet.</p>';
+  $('#days-sub').textContent = rows.length ? `${rows.length} date${rows.length === 1 ? '' : 's'} read off what you sent — past, today, and the days ahead.` : 'Nothing dated yet. Send a bill, a ticket or an appointment and its day lands here.';
+  $('#days-body').innerHTML = rows.length ? `<section class="agenda">${agendaHtml(rows)}${appLine()}</section>` : '';
 }
 function renderList(kind, key) {
   let items = ITEMS, title = 'Everything', sub = 'Every single thing you sent, newest first.';
@@ -504,8 +524,9 @@ function renderList(kind, key) {
     sub = rows.length ? `${rows.length} named in what you sent. Tap one for everything about it.` : 'None named yet in what you sent.';
     lead = rows.length ? namesListHtml(rows) : '';
   }
-  $('#list-title').textContent = title; $('#list-sub').textContent = `${sub} ${items.length} thing${items.length === 1 ? '' : 's'}.`;
-  $('#list-body').innerHTML = lead + (items.length ? gridHtml(items) : '<p class="empty-rail">Nothing here yet.</p>');
+  $('#list-title').textContent = title; $('#list-sub').innerHTML = `${esc(sub)} ${items.length} thing${items.length === 1 ? '' : 's'}. <a class="clear" href="#/home">show everything ›</a>`;
+  // the same column, narrowed: day by day, newest first, with the date chips — never a different kind of screen
+  $('#list-body').innerHTML = lead + (items.length ? dateJumpsHtml(items) + daysHtml(items) : '<p class="empty-rail">Nothing here yet.</p>');
 }
 function renderSpaces() {
   $('#spaces-grid').innerHTML = SPACES.map((s) => { const items = ITEMS.filter((i) => i.spaces.includes(s.id)); return `<a class="space" href="#/s/${s.id}" data-space="${s.id}"><div class="mos">${items.slice(0, 3).map((i) => `<i style="background:${art(i)}"></i>`).join('')}${'<i style="background:var(--raise)"></i>'.repeat(Math.max(0, 3 - items.length))}</div><h3>${esc(s.name)}</h3><small>${items.length} things${s.note ? ' · ' + esc(s.note) : ''}</small></a>`; }).join('') + `<button class="space newbtn" id="newspace"><span style="font-size:28px;line-height:1">+</span>new space</button>`;
@@ -966,6 +987,7 @@ document.addEventListener('click', async (e) => {
   const t = e.target;
   const card = t.closest('.card'); if (card) { openItem(card.dataset.id); return; }
   const agRow = t.closest('[data-open]'); if (agRow) { openItem(agRow.dataset.open); return; }
+  const jump = t.closest('[data-jump]'); if (jump) { document.getElementById('day-' + jump.dataset.jump)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
   if (t.id === 'sheetx' || t.id === 'scrim') { closeSheet(); return; }
   if (t.id === 'newspace') { await newSpace(); renderSpaces(); return; }
   if (t.closest('[data-newspace]') && openId) { await newSpace(openId); openItem(openId); return; }
