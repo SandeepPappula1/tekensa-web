@@ -987,7 +987,8 @@ document.addEventListener('click', async (e) => {
   const t = e.target;
   const card = t.closest('.card'); if (card) { openItem(card.dataset.id); return; }
   const agRow = t.closest('[data-open]'); if (agRow) { openItem(agRow.dataset.open); return; }
-  const jump = t.closest('[data-jump]'); if (jump) { document.getElementById('day-' + jump.dataset.jump)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+  // scrollTo, not scrollIntoView: a smooth scrollIntoView does nothing for a section under content-visibility:auto (seen live, 9 Nov 2026)
+  const jump = t.closest('[data-jump]'); if (jump) { const sec = document.getElementById('day-' + jump.dataset.jump); if (sec) window.scrollTo({ top: sec.getBoundingClientRect().top + window.scrollY - 70, behavior: 'smooth' }); return; }
   if (t.id === 'sheetx' || t.id === 'scrim') { closeSheet(); return; }
   if (t.id === 'newspace') { await newSpace(); renderSpaces(); return; }
   if (t.closest('[data-newspace]') && openId) { await newSpace(openId); openItem(openId); return; }
