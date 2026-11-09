@@ -518,6 +518,51 @@ textarea.note{width:100%;min-height:64px;background:var(--surf);border:1px solid
 .datebar .chip{flex:none;white-space:nowrap;cursor:pointer}
 .datebar .chip:hover,.datebar .chip:focus-visible{border-color:var(--accent);color:var(--ink)}
 #list-sub a.clear{color:var(--accent);text-decoration:none;margin-left:4px}
+/* ---------- folders on the edge, the sort handle, the sort strip and the popover (Phase W.2–4) ---------- */
+.boardwrap{display:grid;grid-template-columns:minmax(0,1fr);gap:28px;align-items:start}
+.folders{display:none}
+@media (min-width:1100px){
+  .boardwrap{grid-template-columns:minmax(0,1fr) 210px}
+  .folders{display:block;position:sticky;top:72px;max-height:calc(100vh - 90px);overflow-y:auto;scrollbar-width:none;padding:2px 0 20px}
+  .brow.folders{display:none}
+}
+.folders h4{margin:0 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);font-weight:600}
+.folders h4+h4,.folders .new+h4{margin-top:18px}
+.folders .f{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:8px 10px;border-radius:10px;color:var(--ink2);text-decoration:none;font-size:14px;border:1px dashed transparent;text-align:left}
+.folders .f:hover{background:var(--raise);color:var(--ink)}
+.folders .f.over{border-color:var(--accent);background:var(--accent-soft);color:var(--ink)}
+.folders .f b{font-weight:600;font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+.folders .f.dim{color:var(--mute)}
+.folders .f.new{color:var(--mute);justify-content:flex-start;font-size:13px}
+.folders .none,.folders .hint{margin:0 0 6px;padding:0 10px;color:var(--mute);font-size:12px}
+.folders .hint{margin-top:18px}
+.brow .chip.new{background:transparent;border-style:dashed;cursor:pointer}
+.grid .card.ed .ed-s .sort{display:inline;color:var(--paper-ink);font-weight:600;border-bottom:1px dotted var(--paper-ink-dim);cursor:pointer}
+.grid .card.ed .ed-s .sort.unsorted{color:#2A2AF0;border-bottom-color:#2A2AF0}
+.grid .card.ed .ed-s .sort:hover{border-bottom-style:solid}
+.sortstrip{margin:-10px 0 26px}
+.sortstrip .srows{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.srow{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 10px 8px 8px;border-radius:12px;background:var(--surf);border:1px solid var(--line)}
+.srow .sthumb{width:44px;height:44px;border-radius:8px;overflow:hidden;position:relative}
+.srow .sthumb img{width:100%;height:100%;object-fit:cover;display:block}
+.srow .smain{display:flex;flex-direction:column;min-width:0}
+.srow .st{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srow .ss{font-size:12px;color:var(--mute)}
+.srow .sacts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.srow .chip{cursor:pointer;font-size:12px;padding:5px 10px}
+.srow .chip.maybe{border-color:var(--accent);color:var(--ink)}
+.sortpop{position:fixed;z-index:70;width:min(420px,calc(100vw - 32px));background:var(--bg2);border:1px solid var(--line2);border-radius:16px;padding:14px 16px 16px;box-shadow:0 24px 60px rgba(0,0,0,.55);display:none}
+.sortpop.on{display:block}
+.sortpop .sp-h{display:flex;align-items:flex-start;gap:10px;margin:0 0 10px}
+.sortpop .sp-h b{font-size:14px;font-weight:600;line-height:1.3;flex:1;min-width:0}
+.sortpop .x{color:var(--mute);font-size:16px;line-height:1;padding:2px 6px;border-radius:8px}
+.sortpop .x:hover{background:var(--raise);color:var(--ink)}
+.sortpop h5{margin:10px 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);font-weight:600}
+.sortpop .sp-chips{display:flex;flex-wrap:wrap;gap:6px}
+.sortpop .chip{cursor:pointer}
+.sortpop .chip.maybe{border-color:var(--accent)}
+.sortpop .chip.new{background:transparent;border-style:dashed}
+@media (max-width:760px){.sortpop{left:0!important;right:0;bottom:0;top:auto!important;width:100%;border-radius:18px 18px 0 0;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));max-height:70vh;overflow-y:auto}.sortstrip .srows{grid-template-columns:1fr}}
 .rail.day .rail-h h2{font-family:var(--serif);font-weight:700;font-size:24px}
 .tags a.tag{text-decoration:none;color:var(--accent)}
 

@@ -204,7 +204,11 @@ function edCardHtml(i) {
   const facts = factsOf(i).filter((x) => x.k === 'when' || x.k === 'amount').slice(0, 2).map((x) => esc(x.v)).join(' · ');
   // a note's own words are its headline, with its date and amount set in the italic like any other thing's
   const headline = emphasise(t === 'note' ? (i.text ?? i.title).replace(/\s+/g, ' ').trim().slice(0, 220) : i.title, i);
-  const sub = [facts, i.cat && i.cat !== 'unsorted' ? esc(CATS[i.cat] ?? i.cat) : '', ago(i.date) + (i.dup ? ' · sent again' : '')].filter(Boolean).join(' · ');
+  // ONE TAP SORTS (Phase W, 9 Nov 2026): the shelf's name on the card is the handle — tap it and the folders open. A thing
+  // not yet sorted says so and offers the filer's lean when it has one. A span, not a button: the card is already a button.
+  const shelf = i.cat && i.cat !== 'unsorted' ? `<span class="sort" role="button" tabindex="0" data-sort="${i.id}" title="file it elsewhere">${esc(CATS[i.cat] ?? i.cat)}</span>`
+    : `<span class="sort unsorted" role="button" tabindex="0" data-sort="${i.id}">${i.facets?.maybe && CATS[i.facets.maybe] ? 'maybe ' + esc(CATS[i.facets.maybe]) + '?' : 'sort ›'}</span>`;
+  const sub = [facts, shelf, ago(i.date) + (i.dup ? ' · sent again' : '')].filter(Boolean).join(' · ');
   return `<button class="card ed ${t === 'note' ? 'words' : ''} ${i.status === 'failed' ? 'failed' : ''}" draggable="true" data-id="${i.id}" aria-label="${esc(i.title)}">${media}${flag}<div class="ed-src">${edSource(i)}</div><h3 class="ed-h">${headline}</h3><div class="ed-s">${sub}</div></button>`;
 }
 
@@ -337,6 +341,54 @@ function daysHtml(items) {
   const keys = [...groups.keys()].sort().reverse();
   return keys.map((k) => { const its = groups.get(k); return `<section class="rail day" id="day-${k}"><div class="rail-h"><h2>${esc(dayLabel(k))}</h2><span class="why">${its.length} thing${its.length === 1 ? '' : 's'}</span></div>${gridHtml(its)}</section>`; }).join('');
 }
+/* ---------- FOLDERS ON THE EDGE (Phase W.2, 9 Nov 2026) ----------
+   The person's own folders (spaces) first, then the shelves that hold something. Each is a drop target on a wide screen;
+   on a phone the same folders are a chip row in the index and the sort popover. A drop on a folder adds the thing to it;
+   a drop on a shelf files it there — and that filing is a correction, which teaches the filer (learned.ts). */
+function foldersHtml(live) {
+  const spaces = SPACES.map((s) => `<a class="f" href="#/s/${s.id}" data-drop="${s.id}"><span>${esc(s.name)}</span><b>${live.filter((i) => i.spaces.includes(s.id)).length}</b></a>`).join('');
+  const shelves = Object.keys(CATS).filter((c) => c !== 'unsorted').map((c) => [c, live.filter((i) => i.cat === c).length]).filter(([, n]) => n > 0)
+    .map(([c, n]) => `<a class="f" href="#/c/${c}" data-drop="cat:${c}"><span>${esc(CATS[c])}</span><b>${n}</b></a>`).join('');
+  const unsorted = live.filter((i) => i.cat === 'unsorted').length;
+  return `<aside class="folders" id="folders" aria-label="Folders"><h4>your folders</h4>${spaces || '<p class="none">none yet</p>'}<button class="f new" data-newfolder>+ new folder</button><h4>shelves</h4>${shelves}${unsorted ? `<a class="f dim" href="#/c/unsorted"><span>not sorted yet</span><b>${unsorted}</b></a>` : ''}<p class="hint">drag a thing onto a folder or a shelf</p></aside>`;
+}
+/* ---------- SORT THESE (Phase W.4): what the filer would not place, first thing on the board, with its lean ready to accept ---------- */
+function sortStripHtml(live) {
+  const rows = live.filter((i) => i.cat === 'unsorted' && ['ready', 'limited'].includes(i.status)).slice(0, 8);
+  if (!rows.length) return '';
+  const total = live.filter((i) => i.cat === 'unsorted').length;
+  return `<section class="sortstrip" id="sortstrip"><div class="rail-h"><h2>sort these</h2><span class="why">${total} thing${total === 1 ? '' : 's'} Tekensa would not place on its own — one tap each</span></div><div class="srows">${rows.map((i) => {
+    const maybe = i.facets?.maybe && CATS[i.facets.maybe] ? i.facets.maybe : null;
+    return `<div class="srow" data-id="${i.id}"><div class="sthumb" style="background:${art(i)}">${i.image ? `<img src="${esc(safeUrl(i.image))}" alt="">` : ''}</div><div class="smain"><span class="st">${esc(i.title)}</span><span class="ss">${esc(SRCLABEL[i.src] ?? i.src)} · ${ago(i.date)}</span></div><div class="sacts">${maybe ? `<button class="chip maybe" data-accept="${i.id}" data-cat="${maybe}">${esc(CATS[maybe])} ✓</button>` : ''}<button class="chip" data-sort="${i.id}">${maybe ? 'elsewhere…' : 'file it…'}</button></div></div>`;
+  }).join('')}</div></section>`;
+}
+/* ---------- the sort popover: file under a shelf, or put in a folder; one tap, then it is the person's and stays ---------- */
+let sortId = null;
+function openSort(id, anchor) {
+  const i = ITEMS.find((x) => x.id === id); if (!i) return; sortId = id;
+  const pop = $('#sortpop');
+  const cats = Object.keys(CATS).filter((c) => c !== 'unsorted').map((c) => `<button class="chip ${i.cat === c ? 'on' : ''} ${i.facets?.maybe === c && i.cat !== c ? 'maybe' : ''}" data-pick-cat="${c}">${esc(CATS[c])}${i.facets?.maybe === c && i.cat !== c ? ' ?' : ''}</button>`).join('');
+  const sps = SPACES.map((s) => `<button class="chip ${i.spaces.includes(s.id) ? 'on' : ''}" data-pick-space="${s.id}">${esc(s.name)}</button>`).join('');
+  pop.innerHTML = `<div class="sp-h"><b>${esc(i.title.slice(0, 80))}</b><button class="x" data-sort-x aria-label="Close">✕</button></div><h5>file under</h5><div class="sp-chips">${cats}</div><h5>in a folder</h5><div class="sp-chips">${sps}<button class="chip new" data-newfolder-with="${i.id}">+ new folder</button></div>`;
+  pop.classList.add('on'); $('#scrim').classList.add('on');
+  // beside the handle on a wide screen; a bottom sheet on a phone (CSS)
+  if (window.innerWidth > 760 && anchor) { const r = anchor.getBoundingClientRect(); pop.style.top = Math.min(window.innerHeight - 20 - pop.offsetHeight, r.bottom + 8) + 'px'; pop.style.left = Math.min(window.innerWidth - 20 - pop.offsetWidth, Math.max(16, r.left)) + 'px'; } else { pop.style.top = ''; pop.style.left = ''; }
+}
+function closeSort() { $('#sortpop').classList.remove('on'); if (!openId) $('#scrim').classList.remove('on'); sortId = null; }
+/** After a sort: the card(s), the strip, the folders and the index are redrawn in place — never the whole view, which would scroll to the top. */
+function refreshAfterSort(id) {
+  const i = ITEMS.find((x) => x.id === id); if (!i) return;
+  document.querySelectorAll(`.card.ed[data-id="${id}"]`).forEach((c) => { c.outerHTML = edCardHtml(i); });
+  const strip = $('#sortstrip'); if (strip) strip.outerHTML = sortStripHtml(ITEMS);
+  const f = $('#folders'); if (f) f.outerHTML = foldersHtml(ITEMS);
+  const nav = document.querySelector('nav.browse'); if (nav) nav.outerHTML = browseHtml(ITEMS);
+}
+async function fileUnder(id, cat) {
+  const i = ITEMS.find((x) => x.id === id); if (!i) return;
+  await correct(i, 'category', cat);
+  refreshAfterSort(id); toast('Filed under ' + CATS[cat] + '. Tekensa won’t change it back, and learns from it.');
+}
+
 function dateJumpsHtml(items) {
   const keys = [...new Set(items.map((i) => dayKey(i.date)))].sort().reverse();
   if (keys.length < 2) return '';
@@ -365,7 +417,7 @@ function renderHome() {
   if (layout === 'board') {
     const rows = agenda(live).filter((r) => !r.overdue);
     const strip = rows.length ? `<section class="agenda strip"><div class="rail-h"><h2>coming up</h2><span class="why">from the dates in what you sent</span><a href="#/days">see all ›</a></div>${agendaHtml(rows, { limit: 6, flat: true })}</section>` : '';
-    B.innerHTML = strip + browseHtml(live) + dateJumpsHtml(live) + daysHtml(live); return;
+    B.innerHTML = strip + browseHtml(live) + sortStripHtml(live) + dateJumpsHtml(live) + `<div class="boardwrap"><div class="col">${daysHtml(live)}</div>${foldersHtml(live)}</div>`; return;
   }
   const processing = live.filter((i) => !['ready', 'limited'].includes(i.status));
   // THE HOME IS AN INDEX FIRST (3 Oct 2026). It used to be up to thirty rows, one per shelf, most of them holding one
@@ -416,7 +468,7 @@ function topicsOf(items, max = 14) {
 }
 function browseHtml(live) {
   const chip = (label, n, href) => (n ? `<a class="chip" href="${href}">${esc(label)}<b>${n}</b></a>` : '');
-  const row = (label, chips) => { const c = chips.join(''); return c ? `<div class="brow"><span class="lbl">${label}</span>${c}</div>` : ''; };
+  const row = (label, chips) => { const c = chips.join(''); return c ? `<div class="brow ${label}"><span class="lbl">${label}</span>${c}</div>` : ''; };
   const onShelf = (s) => live.filter((i) => i.shelves.includes(s)).length;
   const sources = [...new Set(live.map((i) => i.src))];
   const rows = [
@@ -426,6 +478,9 @@ function browseHtml(live) {
     row('named', Object.keys(KIND_LABEL).map((k) => chip(KIND_LABEL[k], kindNames(live, k).length, `#/names/${k}`))),
     row('names', namesOf(live).map(([, n, label]) => chip(label, n, `#/entity/${encodeURIComponent(label)}`))),
     row('lists', Object.keys(LIST_LABEL).map((l) => chip(LIST_LABEL[l], onShelf('list:' + l), `#/shelf/list:${l}`))),
+    // the person's own folders (spaces), always shown even when empty, with the way to make one; on a wide screen the
+    // folders also stand on the board's edge (foldersHtml) and this row steps aside
+    row('folders', [...SPACES.map((s) => `<a class="chip" href="#/s/${s.id}">${esc(s.name)}<b>${live.filter((i) => i.spaces.includes(s.id)).length}</b></a>`), `<button class="chip new" data-newfolder>+ new folder</button>`]),
     // where it came from is only a way to narrow when there is more than one door in use
     sources.length > 1 ? row('from', sources.map((s) => chip((SRCLABEL[s] ?? s), live.filter((i) => i.src === s).length, `#/src/${encodeURIComponent(s)}`))) : '',
   ].join('');
@@ -547,6 +602,18 @@ async function addToSpace(itemId, spaceId) {
   const { error } = await sb.from('space_items').insert({ space_id: spaceId, capture_id: itemId });
   if (error) return toast(error.message);
   i.spaces.push(spaceId); toast('Added to ' + spaceName(spaceId)); route();
+}
+// the same two writes without a full re-render: the sort popover redraws only what changed (refreshAfterSort)
+async function addToSpaceQuiet(itemId, spaceId) {
+  const i = ITEMS.find((x) => x.id === itemId); if (!i || i.spaces.includes(spaceId)) return;
+  const { error } = await sb.from('space_items').insert({ space_id: spaceId, capture_id: itemId });
+  if (error) return toast(error.message);
+  i.spaces.push(spaceId); toast('In ' + spaceName(spaceId));
+}
+async function removeFromSpaceQuiet(itemId, spaceId) {
+  const { error } = await sb.from('space_items').delete().eq('space_id', spaceId).eq('capture_id', itemId);
+  if (error) return toast(error.message);
+  const i = ITEMS.find((x) => x.id === itemId); i.spaces = i.spaces.filter((s) => s !== spaceId); toast('Out of ' + spaceName(spaceId));
 }
 async function removeFromSpace(itemId, spaceId) {
   const { error } = await sb.from('space_items').delete().eq('space_id', spaceId).eq('capture_id', itemId);
@@ -985,11 +1052,19 @@ async function hydrateThumbs() {
 new window.MutationObserver(() => { clearTimeout(thumbTimer); thumbTimer = setTimeout(() => { hydrateThumbs().catch(() => {}); }, 60); }).observe(document.body, { childList: true, subtree: true });
 document.addEventListener('click', async (e) => {
   const t = e.target;
+  // the sort handle on a card comes before the card itself: a tap on the shelf's name opens the folders, not the sheet
+  const sh = t.closest('[data-sort]'); if (sh) { e.preventDefault(); e.stopPropagation(); openSort(sh.dataset.sort, sh); return; }
+  const acc = t.closest('[data-accept]'); if (acc) { await fileUnder(acc.dataset.accept, acc.dataset.cat); return; }
+  if (t.closest('[data-sort-x]')) { closeSort(); return; }
+  const pc = t.closest('[data-pick-cat]'); if (pc && sortId) { const id = sortId; closeSort(); await fileUnder(id, pc.dataset.pickCat); return; }
+  const ps = t.closest('[data-pick-space]'); if (ps && sortId) { const id = sortId; const i = ITEMS.find((x) => x.id === id); closeSort(); if (i.spaces.includes(ps.dataset.pickSpace)) await removeFromSpaceQuiet(id, ps.dataset.pickSpace); else await addToSpaceQuiet(id, ps.dataset.pickSpace); refreshAfterSort(id); return; }
+  const nfw = t.closest('[data-newfolder-with]'); if (nfw) { const id = nfw.dataset.newfolderWith; closeSort(); const sid = await newSpace(); if (sid) { await addToSpaceQuiet(id, sid); refreshAfterSort(id); } return; }
+  if (t.closest('[data-newfolder]')) { const sid = await newSpace(); if (sid) { const f = $('#folders'); if (f) f.outerHTML = foldersHtml(ITEMS); const nav = document.querySelector('nav.browse'); if (nav) nav.outerHTML = browseHtml(ITEMS); } return; }
   const card = t.closest('.card'); if (card) { openItem(card.dataset.id); return; }
   const agRow = t.closest('[data-open]'); if (agRow) { openItem(agRow.dataset.open); return; }
   // scrollTo, not scrollIntoView: a smooth scrollIntoView does nothing for a section under content-visibility:auto (seen live, 9 Nov 2026)
   const jump = t.closest('[data-jump]'); if (jump) { const sec = document.getElementById('day-' + jump.dataset.jump); if (sec) window.scrollTo({ top: sec.getBoundingClientRect().top + window.scrollY - 70, behavior: 'smooth' }); return; }
-  if (t.id === 'sheetx' || t.id === 'scrim') { closeSheet(); return; }
+  if (t.id === 'sheetx' || t.id === 'scrim') { closeSort(); closeSheet(); return; }
   if (t.id === 'newspace') { await newSpace(); renderSpaces(); return; }
   if (t.closest('[data-newspace]') && openId) { await newSpace(openId); openItem(openId); return; }
   const tog = t.closest('[data-tog]'); if (tog && openId) { const i = ITEMS.find((x) => x.id === openId); if (i.spaces.includes(tog.dataset.tog)) await removeFromSpace(openId, tog.dataset.tog); else await addToSpace(openId, tog.dataset.tog); openItem(openId); return; }
@@ -1049,7 +1124,14 @@ document.addEventListener('dragstart', (e) => { const c = e.target.closest('.car
 document.addEventListener('dragend', () => { document.querySelectorAll('.card.dragging').forEach((c) => c.classList.remove('dragging')); $('#dock').classList.remove('on'); document.querySelectorAll('.over').forEach((x) => x.classList.remove('over')); });
 document.addEventListener('dragover', (e) => { const d = e.target.closest('[data-drop],[data-space]'); if (d) { e.preventDefault(); d.classList.add('over'); } });
 document.addEventListener('dragleave', (e) => { const d = e.target.closest('[data-drop],[data-space]'); if (d) d.classList.remove('over'); });
-document.addEventListener('drop', async (e) => { const d = e.target.closest('[data-drop],[data-space]'); if (!d || !dragId) return; e.preventDefault(); const sid = d.dataset.drop || d.dataset.space; if (sid === '__new') await newSpace(dragId); else await addToSpace(dragId, sid); $('#dock').classList.remove('on'); dragId = null; });
+document.addEventListener('drop', async (e) => {
+  const d = e.target.closest('[data-drop],[data-space]'); if (!d || !dragId) return; e.preventDefault();
+  const sid = d.dataset.drop || d.dataset.space; const id = dragId; dragId = null; $('#dock').classList.remove('on');
+  // a drop on a shelf on the board's edge files the thing there — a correction, which teaches the filer
+  if (sid.startsWith('cat:')) { await fileUnder(id, sid.slice(4)); return; }
+  if (sid === '__new') { const nid = await newSpace(); if (nid) { await addToSpaceQuiet(id, nid); refreshAfterSort(id); } return; }
+  if (location.hash.startsWith('#/home') || location.hash === '' || location.hash === '#/') { await addToSpaceQuiet(id, sid); refreshAfterSort(id); } else await addToSpace(id, sid);
+});
 
 /* ---------- an account made from an inbox (server 0029) ----------
    It was opened by a link in a DM and has no email of the person's: the address on it is Tekensa's own placeholder,
