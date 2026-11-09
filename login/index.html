@@ -140,6 +140,8 @@
 
 <script src="/home/vendor/supabase-2.116.0.js"></script>
 <script src="/home/config.js"></script>
-<script src="app.js"></script>
+<!-- versioned on purpose: Meta's preview fetcher kept a cached app.js past the page's max-age and ran the old
+     door-on-load code against a fresh key (9 Nov 2026); a new query string is a new fetch -->
+<script src="app.js?v=20261109b"></script>
 </body>
 </html>
