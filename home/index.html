@@ -9,7 +9,7 @@
 <title>tekensa · your things, day by day</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;900&family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,600;1,6..72,700&display=swap">
 <!-- versioned so a browser (or Meta's fetcher) never runs last week's board against today's rows; bump on every publish -->
-<link rel="stylesheet" href="styles.css?v=20261109g">
+<link rel="stylesheet" href="styles.css?v=20261111a">
 <style>
 /* page-only additions over the shared design system */
 .signin{max-width:440px;margin:60px auto;display:flex;flex-direction:column;gap:14px}
@@ -98,7 +98,7 @@
       <div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><input id="you-pass" type="password" autocomplete="new-password" placeholder="choose a password" style="flex:1;min-width:200px"><button class="btn" id="you-pass-go">save password</button></div>
       <p id="you-pass-msg" role="status" aria-live="polite"></p>
       <h3 style="margin-top:28px">delete everything</h3>
-      <p>Removes every file, every thing you sent, every Space and your sign-in from Tekensa's server. There is no undo and no copy kept.</p>
+      <p>Removes every file, every thing you keep, every Space and your sign-in from Tekensa's server. There is no undo and no copy kept.</p>
       <div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="erase-start">delete everything…</button></div>
       <div id="erase-confirm" hidden style="margin-top:10px"><p>Type <b>DELETE EVERYTHING</b> to confirm.</p><div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><input id="erase-words" type="text" autocomplete="off" placeholder="DELETE EVERYTHING" style="flex:1;min-width:200px"><button class="btn" id="erase-go" disabled>delete everything</button><button class="btn" id="erase-cancel">keep my things</button></div><p class="err" id="erase-err"></p></div>
       <h3 style="margin-top:28px">your things, counted</h3>
@@ -140,6 +140,6 @@
 <script src="config.js"></script>
 <script src="types.js?v=20261109g"></script>
 <script src="when.js?v=20261109g"></script>
-<script src="app.js?v=20261109g"></script>
+<script src="app.js?v=20261111a"></script>
 </body>
 </html>

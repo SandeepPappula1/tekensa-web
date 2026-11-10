@@ -464,15 +464,15 @@ function renderHome() {
   const h = new Date().getHours();
   // the same word the app's lane wears (founder, 9 Nov 2026): the wall is `all`; no count — it is the person's own wall and timeline, not a tally
   $('#greet').innerHTML = 'all';
-  $('#greetsub').textContent = live.length ? `${h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening'}. your wall and your timeline — everything you sent, on the day you sent it.` : 'Send us anything you don’t want to lose.';
+  $('#greetsub').textContent = live.length ? `${h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening'}. your wall and your timeline — everything you keep, on the day it came.` : 'Keep anything you don’t want to lose — type it, add a photo, or send it from Instagram or WhatsApp.';
   const B = $('#home-body');
-  if (!live.length) { B.innerHTML = `<div class="empty"><div><h1>Send us anything you don't want to lose.</h1><p>A link, a screenshot, a voice note, a PDF, a thought. Don't sort it. Just send it.</p><div class="ways"><div class="way"><b>+ add</b><small>Paste a link or text, or pick a file.</small></div><div class="way"><b>Instagram</b><small>DM anything to <a href="https://instagram.com/tekensa" target="_blank" rel="noopener">@tekensa</a>. Tekensa reads it, files it, and replies with where it went and a one-tap link straight back here.</small></div><div class="way"><b>WhatsApp</b><small>Coming: the same, once the number is live.</small></div></div></div></div>`; return; }
+  if (!live.length) { B.innerHTML = `<div class="empty"><div><h1>Keep anything you don't want to lose.</h1><p>A link, a screenshot, a voice note, a PDF, a thought. Don't sort it. Just keep it — here, or from Instagram or WhatsApp.</p><div class="ways"><div class="way"><b>+ add</b><small>Paste a link or text, or pick a file.</small></div><div class="way"><b>Instagram</b><small>DM anything to <a href="https://instagram.com/tekensa" target="_blank" rel="noopener">@tekensa</a>. Tekensa reads it, files it, and replies with where it went and a one-tap link straight back here.</small></div><div class="way"><b>WhatsApp</b><small>Coming: the same, once the number is live.</small></div></div></div></div>`; return; }
   // THE BOARD (founder, 3 Oct 2026: "like Pinterest"): everything, newest first, as one wall of pictures with the index
   // above it as the way to narrow. A reel shows its cover, a link its picture, a photo itself, a note its words.
   if (layout === 'board') {
     const rows = agenda(live).filter((r) => !r.overdue);
     // `yours` is the app's other lane — the day that matters, not the day it was sent; here it is shown, there it is acted on
-    const strip = rows.length ? `<section class="agenda strip"><div class="rail-h"><h2>yours</h2><span class="why">coming up · from the dates in what you sent</span><a href="#/days">see all ›</a></div>${agendaHtml(rows, { limit: 6, flat: true })}</section>` : '';
+    const strip = rows.length ? `<section class="agenda strip"><div class="rail-h"><h2>yours</h2><span class="why">coming up · from the dates in what you keep</span><a href="#/days">see all ›</a></div>${agendaHtml(rows, { limit: 6, flat: true })}</section>` : '';
     B.innerHTML = strip + browseHtml(live) + sortStripHtml(live) + dateJumpsHtml(live) + `<div class="boardwrap"><div class="col">${daysHtml(live)}</div>${foldersHtml(live)}</div>`; watchDays(); return;
   }
   const processing = live.filter((i) => !['ready', 'limited'].includes(i.status));
@@ -491,7 +491,7 @@ function renderHome() {
     ...Object.keys(LIST_LABEL).map((l) => rail(LIST_LABEL[l], full(live.filter((i) => i.shelves.includes('list:' + l))), LIST_WHY[l], `#/shelf/list:${l}`)),
     ...Object.keys(CATS).filter((c) => c !== 'unsorted').map((c) => rail(CATS[c], full(live.filter((i) => i.cat === c)), '', `#/c/${c}`)),
     rail('Products', full(live.filter(isProduct)), 'things that name a product or a brand', '#/products'),
-    ...topHashtags(live, 3).map((h) => rail('#' + h, full(live.filter((i) => i.hashtags.includes(h))), 'a tag you sent', `#/shelf/tag:${encodeURIComponent(h)}`)),
+    ...topHashtags(live, 3).map((h) => rail('#' + h, full(live.filter((i) => i.hashtags.includes(h))), 'a tag of yours', `#/shelf/tag:${encodeURIComponent(h)}`)),
     rail('Needs another look', live.filter((i) => !i.complete && ['ready', 'limited', 'failed'].includes(i.status)), 'kept, but something is still missing — Tekensa will try again', '#/shelf/incomplete'),
     rail('Not sorted yet', live.filter((i) => i.cat === 'unsorted'), 'Tekensa couldn’t place these; tap one to file it', '#/c/unsorted'),
   ];
@@ -546,7 +546,7 @@ function topHashtags(items, n) { const c = new Map(); for (const i of items) for
 /* ---------- day by day: every single thing, under the day it arrived; nothing filtered, nothing folded ---------- */
 function dayKey(d) { return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); }
 function dayLabel(key) { const d = new Date(key + 'T00:00:00+05:30'); const days = Math.round((new Date(dayKey(new Date()) + 'T00:00:00+05:30') - d) / 864e5); const long = d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined }); return days === 0 ? `Today · ${long}` : days === 1 ? `Yesterday · ${long}` : long; }
-/* ---------- your lists: what you meant to do with what you sent, read from your own words ---------- */
+/* ---------- your lists: what you meant to do with what you keep, read from your own words ---------- */
 const LIST_LABEL = { watch: 'to watch', go: 'places to go', eat: 'to eat and cook', buy: 'to buy', read: 'to read and learn', kids: 'for the kids', do: 'to do', bucket: 'bucket list' };
 const LIST_WHY = { watch: 'trailers, films, series, "must watch"', go: 'places, hotels, trips, "want to go"', eat: 'restaurants, cafes, recipes, "must try"', buy: 'products, prices, "wishlist"', read: 'articles, books, courses', kids: 'anything for the little one', do: 'ideas, plans, "someday"', bucket: '"bucket list", "one day"' };
 function renderLists() {
@@ -607,11 +607,11 @@ function agendaHtml(rows, { limit = null, flat = false } = {}) {
 // the days page is now only the dates read off what was sent (the board itself is day by day since Phase W, 9 Nov 2026)
 function renderDays() {
   const rows = agenda(ITEMS);
-  $('#days-sub').textContent = rows.length ? `coming up · ${rows.length} date${rows.length === 1 ? '' : 's'} read off what you sent — past, today, and the days ahead.` : 'Nothing dated yet. Send a bill, a ticket or an appointment and its day lands here.';
+  $('#days-sub').textContent = rows.length ? `coming up · ${rows.length} date${rows.length === 1 ? '' : 's'} read off what you keep — past, today, and the days ahead.` : 'Nothing dated yet. Keep a bill, a ticket or an appointment and its day lands here.';
   $('#days-body').innerHTML = rows.length ? `<section class="agenda">${agendaHtml(rows)}${appLine()}</section>` : '';
 }
 function renderList(kind, key) {
-  let items = ITEMS, title = 'Everything', sub = 'Every single thing you sent, newest first.';
+  let items = ITEMS, title = 'Everything', sub = 'Every single thing you keep, newest first.';
   if (kind === 'shelf') {
     if (key === 'incomplete') { items = ITEMS.filter((i) => !i.complete && ['ready', 'limited', 'failed'].includes(i.status)); title = 'Needs another look'; sub = 'Kept and listed, but the agents could not finish every note. Each one says what is missing; Tekensa asks again on its own.'; }
     else { let k; try { k = decodeURIComponent(key); } catch { location.hash = '#/home'; return; } items = ITEMS.filter((i) => i.shelves.includes(k)); title = k.startsWith('list:') ? (LIST_LABEL[k.slice(5)] ?? k) : k.startsWith('tag:') ? '#' + k.slice(4) : k.startsWith('form:') ? { reel: 'Reels', post: 'Posts', story: 'Stories', video: 'Videos', photo: 'Photos', voice: 'Voice notes', document: 'Documents', article: 'Articles', note: 'Notes', place: 'Places', product: 'Products', music: 'Music' }[k.slice(5)] ?? k : k; sub = 'A shelf the filer keeps. Nothing here was placed by hand.'; }
@@ -625,14 +625,14 @@ function renderList(kind, key) {
     let name; try { name = decodeURIComponent(key ?? '').trim().toLowerCase(); } catch { location.hash = '#/home'; return; }
     if (!name) { location.hash = '#/home'; return; }
     items = ITEMS.filter((i) => namesEntity(i, name)); const shown = items.flatMap((i) => i.entities).find((e) => nameKey(e.name) === nameKey(name));
-    title = shown ? shown.name : name; sub = `Everything you sent that names it: ${knownLine(items)}`;
+    title = shown ? shown.name : name; sub = `Everything you keep that names it: ${knownLine(items)}`;
   }
   let lead = '';
   if (kind === 'names') {
     const rows = KIND_LABEL[key] ? kindNames(ITEMS, key) : [];
     items = [...new Set(rows.flatMap((r) => r.items))].sort((a, b) => b.date - a.date);
     title = KIND_LABEL[key] ? KIND_LABEL[key].charAt(0).toUpperCase() + KIND_LABEL[key].slice(1) : 'Names';
-    sub = rows.length ? `${rows.length} named in what you sent. Tap one for everything about it.` : 'None named yet in what you sent.';
+    sub = rows.length ? `${rows.length} named in what you keep. Tap one for everything about it.` : 'None named yet in what you keep.';
     lead = rows.length ? namesListHtml(rows) : '';
   }
   $('#list-title').textContent = title; $('#list-sub').innerHTML = `${esc(sub)} ${items.length} thing${items.length === 1 ? '' : 's'}. <a class="clear" href="#/home">show everything ›</a>`;
@@ -799,7 +799,7 @@ async function openItem(id) {
   const maybe = !decided && i.cat === 'unsorted' && typeof i.facets?.maybe === 'string' && CATS[i.facets.maybe] ? i.facets.maybe : null;
   const organisation = `<div class="sec"><h4><span class="truth ${decided ? 'you' : 'ai'}">${decided ? 'You decided' : maybe ? 'Tekensa was not sure' : 'Tekensa filed'}</span> ${decided ? 'this stays where you put it, and the next thing like it goes there too' : maybe ? `maybe ${esc(CATS[maybe])}? tap to say` : 'tap to move it'}</h4>
       <div class="corr">${Object.keys(CATS).map((c) => `<button class="${i.cat === c ? 'on' : ''} ${maybe === c ? 'maybe' : ''}" data-setcat="${c}">${CATS[c]}</button>`).join('')}</div>
-      <div class="tags" style="margin-top:10px">${i.hashtags.map((h) => `<a class="tag" href="#/shelf/tag:${encodeURIComponent(h)}" title="a hashtag you sent">#${esc(h)}</a>`).join('')}${i.tags.filter((t) => !i.hashtags.includes(t)).map((t) => `<span class="tag">${esc(t)}<span class="x" data-rmtag="${esc(t)}" title="remove">✕</span></span>`).join('')}${i.ents.map((e) => `<a class="tag ent" href="#/entity/${encodeURIComponent(e[0])}" title="${esc(e[1])} · everything that names it" data-ent>${esc(e[0])} ›</a>`).join('')}<span class="addtag"><input id="addtag-in" placeholder="add a word"><button class="tag" id="addtag-go">add</button></span></div></div>
+      <div class="tags" style="margin-top:10px">${i.hashtags.map((h) => `<a class="tag" href="#/shelf/tag:${encodeURIComponent(h)}" title="a hashtag of yours">#${esc(h)}</a>`).join('')}${i.tags.filter((t) => !i.hashtags.includes(t)).map((t) => `<span class="tag">${esc(t)}<span class="x" data-rmtag="${esc(t)}" title="remove">✕</span></span>`).join('')}${i.ents.map((e) => `<a class="tag ent" href="#/entity/${encodeURIComponent(e[0])}" title="${esc(e[1])} · everything that names it" data-ent>${esc(e[0])} ›</a>`).join('')}<span class="addtag"><input id="addtag-in" placeholder="add a word"><button class="tag" id="addtag-go">add</button></span></div></div>
     <div class="sec"><h4><span class="truth you">Yours</span> Spaces</h4><div class="spacerow">${SPACES.map((s) => `<button class="${i.spaces.includes(s.id) ? 'in' : ''}" data-tog="${s.id}">${i.spaces.includes(s.id) ? '✓ ' : '+ '}${esc(s.name)}</button>`).join('')}<button data-newspace>+ New Space</button></div></div>${connectedHtml}<div class="sec" id="related" hidden></div>`;
 
   const hero = i.type === 'photo' && media ? `<div class="hero"><img class="thumb" src="${esc(media)}" alt=""><button class="x" id="sheetx" aria-label="Close">✕</button></div>` : `<div class="hero ${SHAPE[i.type] ?? 'sq'}${i.image || media ? '' : ' bare'}" style="--hero-bg:${art(i)}">${posterHtml({ ...i, status: null }, true)}<button class="x" id="sheetx" aria-label="Close">✕</button></div>`;
@@ -933,15 +933,15 @@ const rest_ = (facets) => facets.filter((f) => !NOUN_FACETS.has(f)).join(', ');
 async function renderAsk(q) {
   const B = $('#askbody'); askSeq++;   // typing again drops any answer still on its way
   ASK.said = WHEN.parse(q); renderChips();
-  if (!q.trim() && !Object.values(ASK).some(Boolean)) { B.innerHTML = `<p class="answer">Type a word, a #tag, a month, a year, or a question. Tekensa searches what you sent, what it read inside, and what you noted; the chips narrow it.</p><div class="tries">${TRIES.map((t) => `<button data-try="${esc(t)}">${esc(t)}</button>`).join('')}</div>`; return; }
+  if (!q.trim() && !Object.values(ASK).some(Boolean)) { B.innerHTML = `<p class="answer">Type a word, a #tag, a month, a year, or a question. Tekensa searches what you keep, what it read inside, and what you noted; the chips narrow it.</p><div class="tries">${TRIES.map((t) => `<button data-try="${esc(t)}">${esc(t)}</button>`).join('')}</div>`; return; }
   // "movies I shared", "places I planned on travelling", "restaurants in Goa": the names, not the things that mention them
   const wanted = namesAsk(q);
   if (wanted) {
     const label = KIND_LABEL[wanted.kind]; const things = [...new Set(wanted.rows.flatMap((r) => r.items))].sort((a, b) => b.date - a.date);
     const inWhere = wanted.where ? ` in ${esc(wanted.where.label)}` : '';
     B.innerHTML = wanted.rows.length
-      ? `<p class="answer"><span class="n">${wanted.rows.length}</span> ${esc(label)}${inWhere}, named in ${things.length} thing${things.length === 1 ? '' : 's'} you sent.</p>${namesListHtml(wanted.rows)}<div class="grid">${things.map((i) => cardHtml(i, { grid: true })).join('')}</div>${installLine()}`
-      : `<p class="answer">No ${esc(label)}${inWhere} named yet in what you sent. Tekensa lists a name once it is written or said in a thing; a reel it could not read inside has none.</p>${installLine()}`;
+      ? `<p class="answer"><span class="n">${wanted.rows.length}</span> ${esc(label)}${inWhere}, named in ${things.length} thing${things.length === 1 ? '' : 's'} you keep.</p>${namesListHtml(wanted.rows)}<div class="grid">${things.map((i) => cardHtml(i, { grid: true })).join('')}</div>${installLine()}`
+      : `<p class="answer">No ${esc(label)}${inWhere} named yet in what you keep. Tekensa lists a name once it is written or said in a thing; a reel it could not read inside has none.</p>${installLine()}`;
     B._cands = things; return;
   }
   const { cands, facets, rest, empty } = parseAsk(q);
@@ -960,7 +960,7 @@ async function renderAsk(q) {
   const limited = results.filter((i) => i.limited).length;
   const kinds = {}; results.forEach((i) => { kinds[i.type] = (kinds[i.type] ?? 0) + 1; });
   const desc = Object.entries(kinds).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, n]) => `${n} ${k}${n > 1 ? 's' : ''}`).join(', ');
-  const ans = !results.length ? `<p class="answer">Nothing about that yet. If you sent it, it'll be here; if not, send it and forget about it.</p>` : `<p class="answer">You saved <span class="n">${results.length}</span> ${noun(results, facets)}${rest_(facets) ? ' ' + rest_(facets) : ''}${results.length > 1 && !facets.some((f) => NOUN_FACETS.has(f)) ? `, including ${desc}` : ''}.</p>${limited ? `<p class="honest">${limited} of these are links Tekensa couldn't read inside; they matched on your words.</p>` : ''}`;
+  const ans = !results.length ? `<p class="answer">Nothing about that yet. If you kept it, it'll be here; if not, keep it and forget about it.</p>` : `<p class="answer">You saved <span class="n">${results.length}</span> ${noun(results, facets)}${rest_(facets) ? ' ' + rest_(facets) : ''}${results.length > 1 && !facets.some((f) => NOUN_FACETS.has(f)) ? `, including ${desc}` : ''}.</p>${limited ? `<p class="honest">${limited} of these are links Tekensa couldn't read inside; they matched on your words.</p>` : ''}`;
   B.innerHTML = `${ans}${results.length ? `<div class="askacts"><button class="y" data-ask-space>make a space from these</button></div>` : ''}<div class="grid">${results.map((i) => cardHtml(i, { grid: true })).join('')}</div>${installLine()}`;
   B._cands = results;
 }
